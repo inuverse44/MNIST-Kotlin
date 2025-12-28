@@ -5,6 +5,13 @@ import inuverse.example.model.MnistLabel
 
 
 /**
+ * 📝
+ * Service層の役割はアプリケーションの機能（ユースケース）を提供すること
+ * e.g., データセットを読み込む、学習を開始する、推論を実行する
+ * つまり、「手順」を管理するパッケージらしいんやで
+ */
+
+/**
  * TODO: Mnistのデータセットに依存させたくないなあ
  */
 class MnistDatasetService(
@@ -24,4 +31,6 @@ class MnistDatasetService(
     private fun convertOnehot(label: Int): Array<Int> {
         TODO()
     }
+
+
 }
