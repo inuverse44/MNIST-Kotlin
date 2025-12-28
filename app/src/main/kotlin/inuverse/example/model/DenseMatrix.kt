@@ -1,5 +1,9 @@
 package inuverse.example.model
 
+/**
+ * 📝
+ * Listは遅えので使わない。ヒープなんて使ってたまるかバカタレ
+ */
 class DenseMatrix(
     override val rows: Int,
     override val cols: Int,
@@ -26,11 +30,24 @@ class DenseMatrix(
         return data[i * cols + j]
     }
 
+    /**
+     * 線形変換 A: vec{x} \to A \vec{x}を与えたい！！
+     * 添字で書けば、 (A \vec{x})_i = A_ij x_j
+     * つまり最終的な出力のベクトルのサイズはrowsになる
+     */
     override fun apply(x: Vector): Vector {
         require(x.size == cols) {
             "Dimension mismatch: matrix cols=$cols, vector size=${x.size}"
         }
-        TODO("Not yet implemented")
+        val result = DoubleArray(rows)
+        for (i in 0 until rows) {
+            var sum = 0.0
+            for (j in 0 until x.size) {
+                sum += this[i, j] * x[j]
+            }
+            result[i] = sum
+        }
+        return DenseVector(x.size, result)
     }
 
     override fun add(other: Matrix): Matrix {
