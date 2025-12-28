@@ -18,7 +18,7 @@ class VectorExample {
         println("vec1: $vec1")
         println("vec2: $vec2")
         println("vec1 + vec2: ${vec1.add(vec2)}")
-        println("vec1 - vec2: ${vec1.substract(vec2)}")
+        println("vec1 - vec2: ${vec1.subtract(vec2)}")
         println("scaleResult: $scaleResult")
         println("dotResult: $dotResult")
         println("normResult: $normResult")

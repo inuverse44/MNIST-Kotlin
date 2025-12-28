@@ -7,7 +7,7 @@ interface Vector {
 
     fun add(other: Vector): Vector
 
-    fun substract(other: Vector): Vector
+    fun subtract(other: Vector): Vector
 
     fun scale(scale: Double): Vector
 
