@@ -15,7 +15,7 @@ class MnistAsciiExample {
         val mnistImages = imageContext.load(mnistFilePath)
 
         // ラベル用コンテキスト（型が違うのでインスタンスを分ける）
-        // もしかして、ストラテジパターンを導入した意味ないかもーー！！
+        // もしかして、ストラテジパターンを試しに導入した意味ないかもーー！！
         val labelContext = inuverse.example.repository.DataLoadContext(
             inuverse.example.repository.MnistLabelLoadStrategyImpl()
         )

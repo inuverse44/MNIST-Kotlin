@@ -6,8 +6,8 @@ import inuverse.example.example.MatrixExample
 import inuverse.example.example.VectorExample
 
 fun main() {
-    PlotDataExample().examplePlotLines()
-    MnistAsciiExample().exampleMnistAscii()
-    MatrixExample().example()
-    VectorExample().example()
+//    PlotDataExample().examplePlotLines()
+//    MnistAsciiExample().exampleMnistAscii()
+    MatrixExample().run()
+//    VectorExample().example()
 }
