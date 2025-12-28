@@ -10,6 +10,22 @@ class DenseVector(
         return data[i]
     }
 
+    override fun add(other: Vector): Vector {
+        val result = DoubleArray(size)
+        for (i in 0 until size) {
+            result[i] = this[i] + other[i]
+        }
+        return DenseVector(size, result)
+    }
+
+    override fun substract(other: Vector): Vector {
+        val result = DoubleArray(size)
+        for (i in 0 until size) {
+            result[i] = this[i] - other[i]
+        }
+        return DenseVector(size, result)
+    }
+
     /**
      * 定数倍
      */

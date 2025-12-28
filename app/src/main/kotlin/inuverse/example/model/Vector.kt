@@ -5,6 +5,10 @@ interface Vector {
 
     operator fun get(i: Int): Double
 
+    fun add(other: Vector): Vector
+
+    fun substract(other: Vector): Vector
+
     fun scale(scale: Double): Vector
 
     fun dot(other: Vector): Double
