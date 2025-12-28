@@ -22,9 +22,16 @@ class MeanSquaredError: Loss {
     }
 
     /**
-     * d Loss/d y
+     * 解析的には
+     * d Loss/d y_k = \frac{1}{N} (y_k - t_k)
+     * と計算できますね
      */
     override fun backward(predicted: Vector, actual: Vector): Vector {
-        TODO("Not yet implemented")
+        require(predicted.size == actual.size) {
+            "Dimension mismatch: predicted.size: ${predicted.size}, actual.size: ${actual.size}"
+        }
+        val diff = predicted.subtract(actual)
+        return diff.scale(1.0 / predicted.size)
+
     }
 }
