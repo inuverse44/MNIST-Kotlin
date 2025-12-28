@@ -11,7 +11,7 @@ fun main() {
 //    PlotDataExample().examplePlotLines()
 //    MnistAsciiExample().exampleMnistAscii()
 //    MatrixExample().run()
-//    VectorExample().example()
+    VectorExample().run()
 //    ZipBehaviourExample().run()
-    MnistDatasetServiceExample().run()
+//    MnistDatasetServiceExample().run()
 }

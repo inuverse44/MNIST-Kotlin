@@ -54,7 +54,33 @@ class DenseVector(
     }
 
     override fun cross(other: Vector): Vector {
-        TODO("Not yet implemented")
+        TODO()
+    }
+
+    /**
+     * ベクトル（1階テンソル）のテンソル積（本当はテンソルではないが）
+     * e.g.,
+     * u = [1, 2, 1, 3]^T
+     * v = [2, 1, 4, 3]^T
+     * としたとき、
+     * uv^Tということで
+     * [1]                  [2, 1, 4, 3]
+     * [2][2, 1, 4, 3] =    [4, 2, 8, 6]
+     * [1]                  [2, 1, 4, 3]
+     * [3]                  [6, 3, 12, 9]
+     * という行列が得られる
+     */
+    override fun outerProduct(other: Vector): Matrix {
+        val rows = this.size
+        val cols = other.size
+        val data = DoubleArray(rows * cols)
+
+        for (i in 0 until rows) {
+            for (j in 0 until cols) {
+                data[i * cols + j] = this[i] * other[j]
+            }
+        }
+        return DenseMatrix(rows, cols, data)
     }
 
     /**
