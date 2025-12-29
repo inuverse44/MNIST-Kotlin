@@ -47,21 +47,35 @@ class DenseMatrix(
             }
             result[i] = sum
         }
-        return DenseVector(x.size, result)
+        return DenseVector(rows, result)
     }
 
     override fun add(other: Matrix): Matrix {
-        require(cols == other.rows && cols == other.cols) {
+        require(rows == other.rows && cols == other.cols) {
             "Dimension mismatch: ($rows x $cols) + (${other.rows} x ${other.cols})"
         }
-        val result = DoubleArray(cols * rows)
+        val result = DoubleArray(rows * cols)
         for (i in 0 until rows) {
             for (j in 0 until cols) {
                 val index = i * cols + j
                 result[index] = this[i, j] + other[i, j]
             }
         }
-        return DenseMatrix(rows, other.cols, result)
+        return DenseMatrix(rows, cols, result)
+    }
+
+    override fun subtract(other: Matrix): Matrix {
+        require(rows == other.rows && cols == other.cols) {
+            "Dimension mismatch: ($rows x $cols) - (${other.rows} x ${other.cols})"
+        }
+        val result = DoubleArray(rows * cols)
+        for (i in 0 until rows) {
+            for (j in 0 until cols) {
+                val index = i * cols + j
+                result[index] = this[i, j] - other[i, j]
+            }
+        }
+        return DenseMatrix(rows, cols, result)
     }
 
     /**
@@ -90,6 +104,14 @@ class DenseMatrix(
             }
         }
         return DenseMatrix(rows, other.cols, result)
+    }
+
+    override fun scale(scale: Double): Matrix {
+        val result = DoubleArray(rows * cols)
+        for (i in 0 until rows * cols) {
+            result[i] = data[i] * scale
+        }
+        return DenseMatrix(rows, cols, result)
     }
 
     /**

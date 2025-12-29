@@ -3,7 +3,7 @@ package inuverse.example.example
 import inuverse.example.model.DenseVector
 
 class VectorExample {
-    fun example() {
+    fun run() {
         val vecData1 = doubleArrayOf(1.0, 2.0, 3.0)
         val vec1 = DenseVector(vecData1.size, vecData1)
 
@@ -17,6 +17,8 @@ class VectorExample {
 
         println("vec1: $vec1")
         println("vec2: $vec2")
+        println("vec1 + vec2: ${vec1.add(vec2)}")
+        println("vec1 - vec2: ${vec1.subtract(vec2)}")
         println("scaleResult: $scaleResult")
         println("dotResult: $dotResult")
         println("normResult: $normResult")
