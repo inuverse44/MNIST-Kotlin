@@ -51,5 +51,5 @@ java {
 
 application {
     // Define the main class for the application.
-    mainClass = "inuverse.example.MainKt"
+    mainClass = "inuverse.mnist.MainKt"
 }
