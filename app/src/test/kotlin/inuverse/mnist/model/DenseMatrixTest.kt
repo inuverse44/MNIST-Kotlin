@@ -149,5 +149,73 @@ class DenseMatrixTest {
         }
     }
 
+    @Test
+    fun testMatrixMul() {
+        val matrixDataA = doubleArrayOf(
+            1.0, 2.0,
+            3.0, 4.0
+        )
+        val mA = DenseMatrix(2, 2, matrixDataA)
+        val matrixDataB = doubleArrayOf(
+            4.0, 3.0,
+            2.0, 1.0
+        )
+        val mB = DenseMatrix(2, 2, matrixDataB)
+        val result = mA.mul(mB)
+        assertEquals(8.0, result[0, 0])
+        assertEquals(5.0, result[0, 1])
+        assertEquals(20.0, result[1, 0])
+        assertEquals(13.0, result[1, 1])
+    }
+
+    @Test
+    fun testMatrixMulMismatch() {
+        val matrixDataA = doubleArrayOf(
+            1.0, 2.0,
+            3.0, 4.0
+        )
+        val mA = DenseMatrix(2, 2, matrixDataA)
+        val matrixDataB = doubleArrayOf(
+            4.0, 3.0,
+            2.0, 1.0,
+            5.0, 6.0
+        )
+        val mB = DenseMatrix(3, 2, matrixDataB)
+        assertFailsWith<IllegalArgumentException> {
+            mA.mul(mB)
+        }
+    }
+
+    @Test
+    fun testMatrixScale() {
+        val matrixDataA = doubleArrayOf(
+            1.0, 2.0,
+            3.0, 4.0
+        )
+        val mA = DenseMatrix(2, 2, matrixDataA)
+        val result = mA.scale(2.0)
+        assertEquals(2.0, result[0, 0])
+        assertEquals(4.0, result[0, 1])
+        assertEquals(6.0, result[1, 0])
+        assertEquals(8.0, result[1, 1])
+    }
+
+    @Test
+    fun testMatrixTranspose() {
+        val matrixDataA = doubleArrayOf(
+            1.0, 2.0,
+            3.0, 4.0,
+            5.0, 6.0
+        )
+        val mA = DenseMatrix(3, 2, matrixDataA)
+        val result = mA.transpose()
+        assertEquals(1.0, result[0, 0])
+        assertEquals(3.0, result[0, 1])
+        assertEquals(5.0, result[0, 2])
+        assertEquals(2.0, result[1, 0])
+        assertEquals(4.0, result[1, 1])
+        assertEquals(6.0, result[1, 2])
+    }
+
 
 }
