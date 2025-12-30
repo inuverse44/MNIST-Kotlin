@@ -7,8 +7,9 @@ import inuverse.mnist.service.MnistDatasetService
 import inuverse.mnist.service.MnistTrainer
 import inuverse.mnist.neural.Network
 import inuverse.mnist.neural.layer.Dense
-import inuverse.mnist.neural.layer.Sigmoid
-import inuverse.mnist.neural.loss.MeanSquaredError
+import inuverse.mnist.neural.layer.ReLU
+import inuverse.mnist.neural.layer.Softmax
+import inuverse.mnist.neural.loss.CrossEntropy
 import inuverse.mnist.neural.optimizer.StochasticGradientDescent
 import inuverse.mnist.presentation.LossPlotter
 import kotlin.random.Random
@@ -17,11 +18,11 @@ fun main() {
     println("🐶 Inuverse: MNIST Learning System 🐶")
 
     // --- 1. Configuration ---
-    val trainSize = 5000    // 学習データ数 (最大60000)
-    val testSize = 1000      // テストデータ数 (最大10000)
+    val trainSize = 5000    // 学習データ数
+    val testSize = 1000      // テストデータ数
     val epochs = 50         // エポック数
-    val learningRate = 0.1  // 学習率
-    val hiddenSize = 20    // 隠れ層のニューロン数
+    val learningRate = 0.01 // 学習率
+    val hiddenSize = 100    // 隠れ層のニューロン数
 
     // --- 2. Load Data ---
     println("Loading Dataset...")
@@ -41,15 +42,15 @@ fun main() {
     // --- 3. Build Network ---
     println("Building Network...")
     val network = Network(
-        loss = MeanSquaredError(),
+        loss = CrossEntropy(),
         optimizer = StochasticGradientDescent(learningRate)
     )
 
-    // Layer構成: 784 -> 100 (Sigmoid) -> 10 (Sigmoid)
+    // Layer構成: 784 -> 100 (ReLU) -> 10 (Softmax)
     network.add(Dense(784, hiddenSize))
-    network.add(Sigmoid()) 
+    network.add(ReLU())
     network.add(Dense(hiddenSize, 10))
-    network.add(Sigmoid())
+    network.add(Softmax())
 
     // --- 4. Training ---
     val trainer = MnistTrainer(network, trainData, testData)
