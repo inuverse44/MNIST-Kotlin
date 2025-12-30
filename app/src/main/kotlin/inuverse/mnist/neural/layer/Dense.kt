@@ -8,7 +8,8 @@ import kotlin.random.Random
 
 class Dense(
     val inputSize: Int,
-    val outputSize: Int
+    val outputSize: Int,
+    random: Random = Random.Default
 ): Layer {
 
     /**
@@ -20,7 +21,7 @@ class Dense(
     var weights: Matrix = DenseMatrix(
         outputSize,
         inputSize,
-        DoubleArray(outputSize * inputSize) { Random.nextDouble() * 2 - 1 }
+        DoubleArray(outputSize * inputSize) { random.nextDouble() * 2 - 1 }
         )
 
     var bias: Vector = DenseVector(outputSize, DoubleArray(outputSize))
