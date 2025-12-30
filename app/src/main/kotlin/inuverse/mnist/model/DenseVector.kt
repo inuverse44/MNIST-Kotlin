@@ -109,8 +109,9 @@ class DenseVector(
         return result
     }
 
+    override fun getData(): DoubleArray = data.clone()
+
     override fun toString(): String {
         return data.joinToString(", ", "[", "]")
     }
-
 }

@@ -3,16 +3,12 @@ package inuverse.mnist.neural.layer
 import inuverse.mnist.model.Vector
 
 interface Layer {
-    /**
-     * 入力ベクトル x
-     * 出力ベクトル y
-     * とすると↓
-     */
     fun forward(input: Vector): Vector
-
-    /**
-     * 出力側から伝わってきた勾配 \nabla_y L
-     * として、\nabla_x L を返す
-     */
     fun backward(outputGradient: Vector): Vector
+    
+    // パラメータ保存用
+    fun getParameters(): Map<String, Any> = emptyMap()
+    // パラメータ読み込み用
+    fun loadParameters(params: Map<String, Any>) {}
+    fun getName(): String = this::class.simpleName ?: "Layer"
 }

@@ -23,6 +23,9 @@ dependencies {
     // This dependency is used by the application.
     implementation(libs.guava)
 
+    // Jackson (JSON Processing)
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.16.1")
+
     // Let's Plot
     implementation(libs.lets.plot.kotlin.jvm)
     implementation(libs.lets.plot.batik)
