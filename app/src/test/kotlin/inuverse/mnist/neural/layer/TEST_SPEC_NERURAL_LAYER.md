@@ -17,3 +17,12 @@
 | SG001   | 正常系  | testForward        | シグモイド関数がベクトルの各要素に作用して、正しい値を出力している |
 | SG002   | 正常系  | testBackward         | シグモイド関数の逆伝播が正しい                  |
 | SG003   | 正常系  | testBackwardValues    | シグモイド関数の値のロジックが正しい               |
+
+### ReLU (RE)
+活性化関数であるReLU関数のテスト
+
+| TEST ID | KIND | FUNCTION NAME | EXPLANATION |
+|---|---|---|---|
+| RE001 | 正常系 | testForward | 正の値はそのまま、負の値は 0 として出力されている |
+| RE002 | 正常系 | testBackward | 順伝播時の入力が正であれば勾配を通し、0以下であれば遮断している |
+
