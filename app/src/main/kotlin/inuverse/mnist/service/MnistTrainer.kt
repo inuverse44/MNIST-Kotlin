@@ -23,7 +23,7 @@ class MnistTrainer(
      * @return 学習履歴のリスト
      */
     fun train(epochs: Int, reportInterval: Int = 1): List<TrainingHistory> {
-        println("\n🚀 Start Training for $epochs epochs...")
+        println("\n🐶 Start Training for $epochs epochs... 🐶")
         println("   Train Data: ${trainData.size}, Test Data: ${testData.size}")
 
         val history = mutableListOf<TrainingHistory>()

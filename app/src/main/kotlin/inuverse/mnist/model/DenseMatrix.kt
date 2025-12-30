@@ -132,6 +132,8 @@ class DenseMatrix(
         return DenseMatrix(cols, rows, result)
     }
 
+    override fun getData(): DoubleArray = data.clone()
+
     /**
      * printlnするときに、行列の形に整形して表示したいぬ🐶
      */

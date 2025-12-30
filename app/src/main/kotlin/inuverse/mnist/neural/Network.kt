@@ -15,6 +15,9 @@ class Network(
     fun add(layer: Layer) {
         layers.add(layer)
     }
+    
+    // Loader用に公開
+    fun getLayers(): List<Layer> = layers
 
     /**
      * 推論（順伝播）
@@ -25,6 +28,18 @@ class Network(
             x = layer.forward(x)
         }
         return x
+    }
+
+    /**
+     * モデル全体のパラメータを取得する
+     */
+    fun getModelParameters(): List<Map<String, Any>> {
+        return layers.map { layer ->
+            mapOf(
+                "type" to layer.getName(),
+                "params" to layer.getParameters()
+            )
+        }
     }
 
     /**
