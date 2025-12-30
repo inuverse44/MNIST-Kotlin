@@ -8,3 +8,6 @@ build
 .idea
 .DS_Store
 .vscode
+
+# Figure
+*.png
