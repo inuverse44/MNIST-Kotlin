@@ -12,3 +12,6 @@ build
 # Figure
 *.png
 lets-plot-images/
+
+# weights and biases
+mnist_model.json
