@@ -222,6 +222,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ---- Training ----
     startTrainBtn?.addEventListener('click', async () => {
+        const errors = validateLayers(layers);
+        if (errors.length > 0) {
+            trainStatusEl.textContent = 'Layer validation failed:\n' + errors.join('\n');
+            return;
+        }
         const params = {
             layers: layers.map(l => ({
                 type: l.type,
@@ -315,6 +320,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function clearTrainLog() {
         if (trainLogEl) trainLogEl.innerHTML = '';
+    }
+
+    function validateLayers(ls) {
+        const errs = [];
+        if (!ls || ls.length === 0) {
+            errs.push('At least one layer is required.');
+            return errs;
+        }
+        // First layer must be Dense(784, ...)
+        if (ls[0].type !== 'Dense') {
+            errs.push('First layer must be Dense.');
+        } else {
+            if (Number(ls[0].inputSize) !== 28 * 28) {
+                errs.push(`First Dense.inputSize must be ${28 * 28}, got ${ls[0].inputSize}`);
+            }
+        }
+        // Adjacency shapes for Dense
+        let current = null;
+        let lastDenseOut = null;
+        ls.forEach((l, i) => {
+            if (l.type === 'Dense') {
+                const inS = Number(l.inputSize);
+                const outS = Number(l.outputSize);
+                if (i === 0) {
+                    current = outS;
+                    lastDenseOut = outS;
+                } else {
+                    if (current != null && inS !== current) {
+                        errs.push(`Dense at index ${i} inputSize mismatch: expected ${current}, got ${inS}`);
+                    }
+                    current = outS;
+                    lastDenseOut = outS;
+                }
+            } else {
+                if (current == null) {
+                    errs.push(`Activation at index ${i} cannot be the first layer.`);
+                }
+            }
+        });
+        // Last must be Softmax
+        if (ls[ls.length - 1].type !== 'Softmax') {
+            errs.push('Last layer must be Softmax for MNIST classification.');
+        }
+        if (lastDenseOut !== 10) {
+            errs.push(`Output dimension must be 10 for MNIST classification, got ${lastDenseOut}`);
+        }
+        return errs;
     }
 
     predictBtn.addEventListener('click', async () => {
