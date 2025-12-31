@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify(params)
             });
             const { jobId } = await res.json();
-            pollTrainStatus(jobId);
+            streamTrainStatus(jobId);
         } catch (e) {
             trainStatusEl.textContent = 'Failed to start training: ' + e.message;
         }
@@ -148,6 +148,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearInterval(interval);
             }
         }, 1500);
+    }
+
+    function streamTrainStatus(jobId) {
+        if (!window.EventSource) {
+            // Fallback
+            pollTrainStatus(jobId);
+            return;
+        }
+        const es = new EventSource(`/api/train/stream?jobId=${encodeURIComponent(jobId)}`);
+        es.onmessage = (ev) => {
+            try {
+                const data = JSON.parse(ev.data);
+                trainStatusEl.textContent = JSON.stringify(data, null, 2);
+                if (data.state === 'completed' || data.state === 'failed') {
+                    es.close();
+                }
+            } catch (e) {
+                console.error('SSE parse error', e);
+            }
+        };
+        es.onerror = () => {
+            es.close();
+            // Try fallback polling if SSE fails
+            pollTrainStatus(jobId);
+        };
     }
 
     predictBtn.addEventListener('click', async () => {
