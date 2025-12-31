@@ -81,8 +81,9 @@ class TrainingManager(
         val train = all.take(req.config.trainSize)
         val test = all.drop(req.config.trainSize).take(req.config.testSize)
         val trainer = MnistTrainer(network, train, test)
-        val history = trainer.train(req.config.epochs)
-        history.forEach { onProgress(it.epoch, it.loss, it.accuracy) }
+        trainer.trainWithCallback(req.config.epochs) { epoch, loss, acc ->
+            onProgress(epoch, loss, acc)
+        }
         return network
     }
 }

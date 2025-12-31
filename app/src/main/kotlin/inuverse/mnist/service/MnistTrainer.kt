@@ -60,6 +60,43 @@ class MnistTrainer(
     }
 
     /**
+     * 学習（エポックごとにコールバックを実行）
+     */
+    fun trainWithCallback(
+        epochs: Int,
+        reportInterval: Int = 1,
+        onEpoch: (epoch: Int, loss: Double, accuracy: Double) -> Unit
+    ): List<TrainingHistory> {
+        val history = mutableListOf<TrainingHistory>()
+
+        for (epoch in 1..epochs) {
+            val startTime = System.currentTimeMillis()
+            var totalLoss = 0.0
+
+            val shuffledData = trainData.shuffled()
+            for (data in shuffledData) {
+                totalLoss += network.train(data.input, data.label)
+            }
+
+            val avgLoss = totalLoss / trainData.size
+            val duration = System.currentTimeMillis() - startTime
+            val accuracy = evaluate(testData)
+
+            val th = TrainingHistory(epoch, avgLoss, accuracy)
+            history.add(th)
+
+            if (epoch % reportInterval == 0 || epoch == 1 || epoch == epochs) {
+                val accuracyPercent = "%.2f".format(accuracy * 100)
+                logger.info("Epoch $epoch/$epochs | Loss: %.6f | Accuracy: $accuracyPercent%% | Time: ${duration}ms".format(avgLoss))
+            }
+
+            onEpoch(epoch, avgLoss, accuracy)
+        }
+        logger.info("Training Finished!")
+        return history
+    }
+
+    /**
      * 評価を実行し、正解率 (0.0 - 1.0) を返す
      */
     fun evaluate(dataset: List<DataPair>): Double {
