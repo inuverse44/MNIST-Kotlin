@@ -44,15 +44,15 @@ class MnistLearningService(
 
         val prediction = getPrediction(testData[0].input, network)
         val actualLabel = testData[0].label
-        println("\n🐶Check: input: ${testData[0].input}")
-        println("\n🐶Check: prediction: $prediction")
-        println("\n🐶Check: label: $actualLabel")
+//        println("\n🐶Check: input: ${testData[0].input}")
+//        println("\n🐶Check: prediction: $prediction")
+//        println("\n🐶Check: label: $actualLabel")
 
         // 可視化
         println("\n🐶 Generating Training Graphs...")
         LossPlotter().plot(history)
 
-        println("🏆 Final Evaluation on Test Data...")
+        println("🐶Final Evaluation on Test Data...")
         val finalAccuracy = trainer.evaluate(testData)
         println("   Test Accuracy: %.2f%%\n".format(finalAccuracy * 100))
         

@@ -41,6 +41,6 @@ class LossPlotter {
         ggsave(lossPlot, "loss_plot.png")
         ggsave(accPlot, "accuracy_plot.png")
         
-        println("📊 Graphs saved: loss_plot.png, accuracy_plot.png")
+        println("🐶Graphs saved: loss_plot.png, accuracy_plot.png")
     }
 }
