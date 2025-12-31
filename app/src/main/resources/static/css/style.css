@@ -144,8 +144,6 @@ button:active {
 .layer-type { width: 120px; font-weight: 600; }
 
 /* Training log */
-.train-log { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 8px; max-height: 240px; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
-.train-log .log-line { padding: 2px 0; color: #333; }
-.train-log .log-line .epoch { font-weight: 700; color: #444; }
-.train-log .log-line .loss { color: #c0392b; }
-.train-log .log-line .acc { color: #2c3e50; }
+/* Plot */
+.plot-container { background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:8px; overflow:auto; }
+#lossCanvas { width: 100%; height: auto; display: block; }

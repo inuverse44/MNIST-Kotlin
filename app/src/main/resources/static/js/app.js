@@ -8,7 +8,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const barsContainer = document.getElementById('bars');
     const startTrainBtn = document.getElementById('startTrainBtn');
     const trainStatusEl = document.getElementById('trainStatus');
-    const trainLogEl = document.getElementById('trainLog');
+    const lossCanvas = document.getElementById('lossCanvas');
+    const lossCtx = lossCanvas ? lossCanvas.getContext('2d') : null;
+    let lossPoints = [];
     const epochsInput = document.getElementById('epochs');
     const lrInput = document.getElementById('learningRate');
     const trainSizeInput = document.getElementById('trainSize');
@@ -242,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         try {
             trainStatusEl.textContent = 'Starting training...';
-            clearTrainLog();
+            resetLossPlot();
             const res = await fetch('/api/train/start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -287,8 +289,9 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const data = JSON.parse(ev.data);
                 trainStatusEl.textContent = JSON.stringify(data, null, 2);
-                if (typeof data.epoch === 'number' && typeof data.loss === 'number' && typeof data.accuracy === 'number') {
-                    appendTrainLog(data.epoch, data.loss, data.accuracy);
+                if (typeof data.epoch === 'number' && typeof data.loss === 'number') {
+                    appendLossPoint(data.epoch, data.loss);
+                    drawLossPlot();
                 }
                 if (data.state === 'completed' || data.state === 'failed') {
                     es.close();
@@ -304,22 +307,69 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    function appendTrainLog(epoch, loss, acc) {
-        const div = document.createElement('div');
-        div.className = 'log-line';
-        const lossStr = (loss).toFixed(6);
-        const accStr = (acc * 100).toFixed(2);
-        div.innerHTML = `<span class="epoch">Epoch ${epoch}</span> | <span class="loss">loss=${lossStr}</span> | <span class="acc">acc=${accStr}%</span>`;
-        trainLogEl.appendChild(div);
-        trainLogEl.scrollTop = trainLogEl.scrollHeight;
-        // keep last ~500 lines
-        while (trainLogEl.children.length > 500) {
-            trainLogEl.removeChild(trainLogEl.firstChild);
-        }
+    function appendLossPoint(epoch, loss) {
+        lossPoints.push({ epoch, loss });
+        if (lossPoints.length > 1000) lossPoints.shift();
     }
 
-    function clearTrainLog() {
-        if (trainLogEl) trainLogEl.innerHTML = '';
+    function resetLossPlot() {
+        lossPoints = [];
+        drawLossPlot();
+    }
+
+    function drawLossPlot() {
+        if (!lossCtx) return;
+        const ctx = lossCtx;
+        const W = lossCanvas.width, H = lossCanvas.height;
+        ctx.clearRect(0, 0, W, H);
+        const padL = 50, padR = 10, padT = 10, padB = 30;
+        ctx.strokeStyle = '#ccc';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padL, padT);
+        ctx.lineTo(padL, H - padB);
+        ctx.lineTo(W - padR, H - padB);
+        ctx.stroke();
+
+        if (lossPoints.length === 0) return;
+        const minX = 1;
+        const maxX = Math.max(...lossPoints.map(p => p.epoch));
+        const minY = 0;
+        const maxY = Math.max(...lossPoints.map(p => p.loss)) * 1.05 || 1;
+        const x2px = (x) => padL + (x - minX) / (maxX - minX || 1) * (W - padL - padR);
+        const y2px = (y) => (H - padB) - (y - minY) / (maxY - minY || 1) * (H - padT - padB);
+
+        ctx.strokeStyle = '#c0392b';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        lossPoints.forEach((p, i) => {
+            const px = x2px(p.epoch);
+            const py = y2px(p.loss);
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        });
+        ctx.stroke();
+
+        ctx.fillStyle = '#555';
+        ctx.font = '12px sans-serif';
+        ctx.fillText('epoch', W - padR - 40, H - 8);
+        ctx.save();
+        ctx.translate(12, padT + 20);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('loss', 0, 0);
+        ctx.restore();
+
+        const ticks = 4;
+        for (let i = 0; i <= ticks; i++) {
+            const yv = minY + (maxY - minY) * (i / ticks);
+            const yy = y2px(yv);
+            ctx.strokeStyle = '#eee';
+            ctx.beginPath();
+            ctx.moveTo(padL, yy);
+            ctx.lineTo(W - padR, yy);
+            ctx.stroke();
+            ctx.fillStyle = '#777';
+            ctx.fillText(yv.toFixed(3), 6, yy + 3);
+        }
     }
 
     function validateLayers(ls) {
