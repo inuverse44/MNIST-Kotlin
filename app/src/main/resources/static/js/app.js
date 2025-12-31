@@ -267,7 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     clearInterval(interval);
                     return;
                 }
-                trainStatusEl.textContent = JSON.stringify(s, null, 2);
+                trainStatusEl.textContent = formatStatus(s);
                 if (s.state === 'completed' || s.state === 'failed') {
                     clearInterval(interval);
                 }
@@ -288,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
         es.onmessage = (ev) => {
             try {
                 const data = JSON.parse(ev.data);
-                trainStatusEl.textContent = JSON.stringify(data, null, 2);
+                trainStatusEl.textContent = formatStatus(data);
                 if (typeof data.epoch === 'number' && typeof data.loss === 'number') {
                     appendLossPoint(data.epoch, data.loss);
                     drawLossPlot();
@@ -322,6 +322,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const ctx = lossCtx;
         const W = lossCanvas.width, H = lossCanvas.height;
         ctx.clearRect(0, 0, W, H);
+        // white background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, W, H);
         const padL = 50, padR = 10, padT = 10, padB = 30;
         ctx.strokeStyle = '#ccc';
         ctx.lineWidth = 1;
@@ -339,7 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const x2px = (x) => padL + (x - minX) / (maxX - minX || 1) * (W - padL - padR);
         const y2px = (y) => (H - padB) - (y - minY) / (maxY - minY || 1) * (H - padT - padB);
 
-        ctx.strokeStyle = '#c0392b';
+        ctx.strokeStyle = '#2196F3';
         ctx.lineWidth = 2;
         ctx.beginPath();
         lossPoints.forEach((p, i) => {
@@ -370,6 +373,16 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillStyle = '#777';
             ctx.fillText(yv.toFixed(3), 6, yy + 3);
         }
+    }
+
+    function formatStatus(s) {
+        if (!s || s.error) return s?.error ? `Error: ${s.error}` : '';
+        const parts = [];
+        if (s.state) parts.push(`State: ${s.state}`);
+        if (typeof s.epoch === 'number') parts.push(`epoch=${s.epoch}`);
+        if (typeof s.loss === 'number') parts.push(`loss=${s.loss.toFixed(5)}`);
+        if (typeof s.accuracy === 'number') parts.push(`acc=${(s.accuracy*100).toFixed(2)}%`);
+        return parts.join('  |  ');
     }
 
     function validateLayers(ls) {
