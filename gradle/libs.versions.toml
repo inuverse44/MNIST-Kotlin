@@ -23,3 +23,4 @@ ktor-serialization-jackson = { module = "io.ktor:ktor-serialization-jackson-jvm"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version = "2.2.0" }
+shadow = { id = "com.github.johnrengelman.shadow", version = "8.1.1" }
