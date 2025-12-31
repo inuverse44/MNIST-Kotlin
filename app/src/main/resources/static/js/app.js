@@ -1,513 +1,454 @@
+/**
+ * MNIST Kotlin Frontend Application
+ * Uses Chart.js for visualization.
+ */
+
 document.addEventListener('DOMContentLoaded', () => {
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const clearBtn = document.getElementById('clearBtn');
-    const predictBtn = document.getElementById('predictBtn');
-    const predictionEl = document.getElementById('prediction');
-    const confidenceEl = document.getElementById('confidence');
-    const barsContainer = document.getElementById('bars');
-    const startTrainBtn = document.getElementById('startTrainBtn');
-    const trainStatusEl = document.getElementById('trainStatus');
-    const lossCanvas = document.getElementById('lossCanvas');
-    const lossCtx = lossCanvas ? lossCanvas.getContext('2d') : null;
-    const lossLogToggle = document.getElementById('lossLogScale');
-    let lossPoints = [];
-    lossLogToggle?.addEventListener('change', () => drawLossPlot());
-    const epochsInput = document.getElementById('epochs');
-    const lrInput = document.getElementById('learningRate');
-    const trainSizeInput = document.getElementById('trainSize');
-    const testSizeInput = document.getElementById('testSize');
-    const hiddenSizeInput = document.getElementById('hiddenSize');
-
-    // Layer builder elements
-    const layerListEl = document.getElementById('layerList');
-    const addDenseBtn = document.getElementById('addDenseBtn');
-    const addReLUBtn = document.getElementById('addReLUBtn');
-    const addSigmoidBtn = document.getElementById('addSigmoidBtn');
-    const addSoftmaxBtn = document.getElementById('addSoftmaxBtn');
-    const moveUpBtn = document.getElementById('moveUpBtn');
-    const moveDownBtn = document.getElementById('moveDownBtn');
-    const removeBtn = document.getElementById('removeBtn');
-    const resetDefaultBtn = document.getElementById('resetDefaultBtn');
-
-    // Layer model (UI state)
-    let layers = [];
-    let selectedIndex = -1;
-
-    function setDefaultLayers() {
-        layers = [
-            { type: 'Dense', inputSize: 28 * 28, outputSize: Number(hiddenSizeInput.value) || 100 },
-            { type: 'ReLU' },
-            { type: 'Dense', inputSize: Number(hiddenSizeInput.value) || 100, outputSize: 10 },
-            { type: 'Softmax' }
-        ];
-        selectedIndex = -1;
-        renderLayers();
-    }
-
-    function renderLayers() {
-        layerListEl.innerHTML = '';
-        layers.forEach((layer, idx) => {
-            const row = document.createElement('div');
-            row.className = 'layer-row' + (idx === selectedIndex ? ' selected' : '');
-            row.addEventListener('click', () => { selectedIndex = idx; renderLayers(); });
-
-            const typeSpan = document.createElement('span');
-            typeSpan.className = 'layer-type';
-            typeSpan.textContent = `${idx}. ${layer.type}`;
-            row.appendChild(typeSpan);
-
-            if (layer.type === 'Dense') {
-                const inInput = document.createElement('input');
-                inInput.type = 'number';
-                inInput.min = '1';
-                inInput.value = layer.inputSize;
-                inInput.title = 'inputSize';
-                inInput.addEventListener('change', (e) => {
-                    layer.inputSize = Number(e.target.value);
-                });
-                row.appendChild(inInput);
-
-                const arrow = document.createElement('span');
-                arrow.textContent = ' → ';
-                row.appendChild(arrow);
-
-                const outInput = document.createElement('input');
-                outInput.type = 'number';
-                outInput.min = '1';
-                outInput.value = layer.outputSize;
-                outInput.title = 'outputSize';
-                outInput.addEventListener('change', (e) => {
-                    layer.outputSize = Number(e.target.value);
-                    // propagate to next Dense inputSize if present
-                    const next = layers[idx + 1];
-                    if (next && next.type === 'Dense') {
-                        next.inputSize = layer.outputSize;
-                        // keep UI in sync
-                        renderLayers();
-                    }
-                });
-                row.appendChild(outInput);
-            }
-
-            layerListEl.appendChild(row);
-        });
-    }
-
-    // Layer builder controls
-    addDenseBtn?.addEventListener('click', () => {
-        const prev = layers[selectedIndex >= 0 ? selectedIndex : layers.length - 1];
-        const defaultIn = prev && prev.type === 'Dense' ? prev.outputSize : (layers.length === 0 ? 28 * 28 : 10);
-        layers.splice(selectedIndex >= 0 ? selectedIndex + 1 : layers.length, 0, { type: 'Dense', inputSize: defaultIn, outputSize: 100 });
-        selectedIndex = (selectedIndex >= 0 ? selectedIndex + 1 : layers.length - 1);
-        renderLayers();
-    });
-    addReLUBtn?.addEventListener('click', () => { addAct('ReLU'); });
-    addSigmoidBtn?.addEventListener('click', () => { addAct('Sigmoid'); });
-    addSoftmaxBtn?.addEventListener('click', () => { addAct('Softmax'); });
-    function addAct(name) {
-        layers.splice(selectedIndex >= 0 ? selectedIndex + 1 : layers.length, 0, { type: name });
-        selectedIndex = (selectedIndex >= 0 ? selectedIndex + 1 : layers.length - 1);
-        renderLayers();
-    }
-    moveUpBtn?.addEventListener('click', () => {
-        if (selectedIndex > 0) {
-            const tmp = layers[selectedIndex - 1];
-            layers[selectedIndex - 1] = layers[selectedIndex];
-            layers[selectedIndex] = tmp;
-            selectedIndex--;
-            renderLayers();
-        }
-    });
-    moveDownBtn?.addEventListener('click', () => {
-        if (selectedIndex >= 0 && selectedIndex < layers.length - 1) {
-            const tmp = layers[selectedIndex + 1];
-            layers[selectedIndex + 1] = layers[selectedIndex];
-            layers[selectedIndex] = tmp;
-            selectedIndex++;
-            renderLayers();
-        }
-    });
-    removeBtn?.addEventListener('click', () => {
-        if (selectedIndex >= 0) {
-            layers.splice(selectedIndex, 1);
-            selectedIndex = -1;
-            renderLayers();
-        }
-    });
-    resetDefaultBtn?.addEventListener('click', () => setDefaultLayers());
-
-    // Initialize layer builder
-    setDefaultLayers();
-
-    let isDrawing = false;
-
-    // Init probability bars
-    for (let i = 0; i < 10; i++) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'bar-wrapper';
-        wrapper.innerHTML = `
-            <div class="bar-value" id="val-${i}">0%</div>
-            <div class="bar" style="height: 2%" id="bar-${i}"></div>
-            <div class="bar-label">${i}</div>
-        `;
-        barsContainer.appendChild(wrapper);
-    }
-
-    // Canvas settings
-    ctx.fillStyle = 'black';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.lineWidth = 18;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = 'white';
-
-    function getPos(e) {
-        const rect = canvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        
-        // Scale factor between CSS and Canvas pixels
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        
-        return {
-            x: (clientX - rect.left) * scaleX,
-            y: (clientY - rect.top) * scaleY
-        };
-    }
-
-    function startDraw(e) {
-        e.preventDefault();
-        isDrawing = true;
-        const pos = getPos(e);
-        ctx.beginPath();
-        ctx.moveTo(pos.x, pos.y);
-    }
-
-    function draw(e) {
-        e.preventDefault();
-        if (!isDrawing) return;
-        const pos = getPos(e);
-        ctx.lineTo(pos.x, pos.y);
-        ctx.stroke();
-    }
-
-    function stopDraw() {
-        isDrawing = false;
-    }
-
-    // Desktop
-    canvas.addEventListener('mousedown', startDraw);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', stopDraw);
-    canvas.addEventListener('mouseout', stopDraw);
     
-    // Mobile
-    canvas.addEventListener('touchstart', startDraw);
-    canvas.addEventListener('touchmove', draw);
-    canvas.addEventListener('touchend', stopDraw);
+    // --- Components ---
 
-    clearBtn.addEventListener('click', () => {
-        ctx.fillStyle = 'black';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        predictionEl.textContent = '-';
-        confidenceEl.textContent = '';
-        
-        // Reset bars
-        document.querySelectorAll('.bar').forEach(b => {
-            b.style.height = '2%';
-            b.classList.remove('active');
-        });
-        document.querySelectorAll('.bar-value').forEach(v => {
-            v.style.opacity = '0';
-        });
-    });
-
-    // ---- Training ----
-    startTrainBtn?.addEventListener('click', async () => {
-        const errors = validateLayers(layers);
-        if (errors.length > 0) {
-            trainStatusEl.textContent = 'Layer validation failed:\n' + errors.join('\n');
-            return;
+    /**
+     * Handles Canvas interactions.
+     */
+    class CanvasHandler {
+        constructor(canvasId, clearBtnId) {
+            this.canvas = document.getElementById(canvasId);
+            this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
+            this.clearBtn = document.getElementById(clearBtnId);
+            this.isDrawing = false;
+            this.init();
         }
-        const params = {
-            layers: layers.map(l => ({
-                type: l.type,
-                ...(l.type === 'Dense' ? { inputSize: Number(l.inputSize), outputSize: Number(l.outputSize) } : {})
-            })),
-            config: {
-                epochs: Number(epochsInput.value),
-                learningRate: Number(lrInput.value),
-                trainSize: Number(trainSizeInput.value),
-                testSize: Number(testSizeInput.value),
-                hiddenLayerSize: Number(hiddenSizeInput.value)
+
+        init() {
+            this.ctx.fillStyle = 'black';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.lineCap = 'round';
+            this.ctx.lineJoin = 'round';
+            this.ctx.strokeStyle = 'white';
+            this.ctx.lineWidth = 18;
+
+            const start = this.startDraw.bind(this);
+            const move = this.draw.bind(this);
+            const stop = this.stopDraw.bind(this);
+
+            this.canvas.addEventListener('mousedown', start);
+            this.canvas.addEventListener('mousemove', move);
+            this.canvas.addEventListener('mouseup', stop);
+            this.canvas.addEventListener('mouseout', stop);
+
+            this.canvas.addEventListener('touchstart', start, { passive: false });
+            this.canvas.addEventListener('touchmove', move, { passive: false });
+            this.canvas.addEventListener('touchend', stop);
+
+            this.clearBtn?.addEventListener('click', this.clear.bind(this));
+        }
+
+        getPos(e) {
+            const rect = this.canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+        }
+
+        startDraw(e) {
+            if (e.cancelable) e.preventDefault();
+            this.isDrawing = true;
+            const pos = this.getPos(e);
+            this.ctx.beginPath();
+            this.ctx.moveTo(pos.x, pos.y);
+        }
+
+        draw(e) {
+            if (e.cancelable) e.preventDefault();
+            if (!this.isDrawing) return;
+            const pos = this.getPos(e);
+            this.ctx.lineTo(pos.x, pos.y);
+            this.ctx.stroke();
+        }
+
+        stopDraw() {
+            this.isDrawing = false;
+        }
+
+        clear() {
+            this.ctx.fillStyle = 'black';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+
+        getImageData() {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 28;
+            tempCanvas.height = 28;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(this.canvas, 0, 0, 28, 28);
+            const data = tempCtx.getImageData(0, 0, 28, 28).data;
+            const input = [];
+            for (let i = 0; i < data.length; i += 4) input.push(data[i] / 255.0);
+            return input;
+        }
+    }
+
+    /**
+     * Handles Layer Builder UI.
+     */
+    class LayerBuilder {
+        constructor(listId, controls) {
+            this.listEl = document.getElementById(listId);
+            this.controls = controls;
+            this.layers = [];
+            this.selectedIndex = -1;
+            
+            this.controls.addDense?.addEventListener('click', () => this.addLayer('Dense'));
+            this.controls.addReLU?.addEventListener('click', () => this.addLayer('ReLU'));
+            this.controls.addSigmoid?.addEventListener('click', () => this.addLayer('Sigmoid'));
+            this.controls.addSoftmax?.addEventListener('click', () => this.addLayer('Softmax'));
+            this.controls.moveUp?.addEventListener('click', () => this.moveLayer(-1));
+            this.controls.moveDown?.addEventListener('click', () => this.moveLayer(1));
+            this.controls.remove?.addEventListener('click', () => this.removeLayer());
+            this.controls.reset?.addEventListener('click', () => this.setDefaultLayers());
+
+            this.setDefaultLayers();
+        }
+
+        setDefaultLayers() {
+            const hiddenSize = Number(document.getElementById('hiddenSize')?.value) || 100;
+            this.layers = [
+                { type: 'Dense', inputSize: 784, outputSize: hiddenSize },
+                { type: 'ReLU' },
+                { type: 'Dense', inputSize: hiddenSize, outputSize: 10 },
+                { type: 'Softmax' }
+            ];
+            this.selectedIndex = -1;
+            this.render();
+        }
+
+        addLayer(type) {
+            const idx = this.selectedIndex >= 0 ? this.selectedIndex + 1 : this.layers.length;
+            let newLayer = { type };
+            if (type === 'Dense') {
+                const prev = this.layers[idx - 1];
+                const inputSize = (prev && prev.type === 'Dense') ? prev.outputSize : 100;
+                newLayer = { type, inputSize, outputSize: 100 };
             }
-        };
-        try {
-            trainStatusEl.textContent = 'Starting training...';
-            resetLossPlot();
-            const res = await fetch('/api/train/start', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(params)
+            this.layers.splice(idx, 0, newLayer);
+            this.selectedIndex = idx;
+            this.render();
+        }
+
+        removeLayer() {
+            if (this.selectedIndex >= 0) {
+                this.layers.splice(this.selectedIndex, 1);
+                this.selectedIndex = -1;
+                this.render();
+            }
+        }
+
+        moveLayer(dir) {
+            const idx = this.selectedIndex;
+            if (idx < 0) return;
+            const newIdx = idx + dir;
+            if (newIdx >= 0 && newIdx < this.layers.length) {
+                [this.layers[idx], this.layers[newIdx]] = [this.layers[newIdx], this.layers[idx]];
+                this.selectedIndex = newIdx;
+                this.render();
+            }
+        }
+
+        render() {
+            this.listEl.innerHTML = '';
+            this.layers.forEach((layer, idx) => {
+                const row = document.createElement('div');
+                row.className = `layer-row ${idx === this.selectedIndex ? 'selected' : ''}`;
+                row.onclick = () => { this.selectedIndex = idx; this.render(); };
+
+                const type = document.createElement('div');
+                type.className = 'layer-type';
+                type.textContent = `${idx + 1}. ${layer.type}`;
+                row.appendChild(type);
+
+                if (layer.type === 'Dense') {
+                    const dims = document.createElement('div');
+                    dims.className = 'layer-dims';
+                    dims.innerHTML = `<input type="number" class="in" value="${layer.inputSize}"><span>→</span><input type="number" class="out" value="${layer.outputSize}">`;
+                    const inInput = dims.querySelector('.in');
+                    const outInput = dims.querySelector('.out');
+                    inInput.onchange = (e) => layer.inputSize = Number(e.target.value);
+                    outInput.onchange = (e) => {
+                        layer.outputSize = Number(e.target.value);
+                        this.propagateSize(idx, layer.outputSize);
+                    };
+                    inInput.onclick = outInput.onclick = (e) => e.stopPropagation();
+                    row.appendChild(dims);
+                }
+                this.listEl.appendChild(row);
             });
-            const { jobId } = await res.json();
-            streamTrainStatus(jobId);
-        } catch (e) {
-            trainStatusEl.textContent = 'Failed to start training: ' + e.message;
         }
-    });
 
-    async function pollTrainStatus(jobId) {
-        const interval = setInterval(async () => {
-            try {
-                const res = await fetch(`/api/train/status?jobId=${encodeURIComponent(jobId)}`);
-                const s = await res.json();
-                if (s.error) {
-                    trainStatusEl.textContent = 'Error: ' + s.error;
-                    clearInterval(interval);
-                    return;
+        propagateSize(idx, size) {
+            for (let i = idx + 1; i < this.layers.length; i++) {
+                if (this.layers[i].type === 'Dense') {
+                    this.layers[i].inputSize = size;
+                    this.render();
+                    break;
                 }
-                trainStatusEl.textContent = formatStatus(s);
-                if (s.state === 'completed' || s.state === 'failed') {
-                    clearInterval(interval);
-                }
-            } catch (e) {
-                trainStatusEl.textContent = 'Status error: ' + e.message;
-                clearInterval(interval);
             }
-        }, 1500);
-    }
-
-    function streamTrainStatus(jobId) {
-        if (!window.EventSource) {
-            // Fallback
-            pollTrainStatus(jobId);
-            return;
         }
-        const es = new EventSource(`/api/train/stream?jobId=${encodeURIComponent(jobId)}`);
-        es.onmessage = (ev) => {
-            try {
-                const data = JSON.parse(ev.data);
-                trainStatusEl.textContent = formatStatus(data);
-                if (typeof data.epoch === 'number' && typeof data.loss === 'number') {
-                    appendLossPoint(data.epoch, data.loss);
-                    drawLossPlot();
+
+        validate() {
+            const errs = [];
+            if (!this.layers.length) return ['At least one layer required.'];
+            if (this.layers[0].type !== 'Dense' || this.layers[0].inputSize !== 784) errs.push('First layer must be Dense(784).');
+            if (this.layers[this.layers.length - 1].type !== 'Softmax') errs.push('Last layer must be Softmax.');
+            let expectedIn = 784;
+            this.layers.forEach((l, i) => {
+                if (l.type === 'Dense') {
+                    if (l.inputSize !== expectedIn) errs.push(`Layer ${i+1}: expected input ${expectedIn}, got ${l.inputSize}`);
+                    expectedIn = l.outputSize;
                 }
-                if (data.state === 'completed' || data.state === 'failed') {
-                    es.close();
-                }
-            } catch (e) {
-                console.error('SSE parse error', e);
-            }
-        };
-        es.onerror = () => {
-            es.close();
-            // Try fallback polling if SSE fails
-            pollTrainStatus(jobId);
-        };
-    }
-
-    function appendLossPoint(epoch, loss) {
-        lossPoints.push({ epoch, loss });
-        if (lossPoints.length > 1000) lossPoints.shift();
-    }
-
-    function resetLossPlot() {
-        lossPoints = [];
-        drawLossPlot();
-    }
-
-    function drawLossPlot() {
-        if (!lossCtx) return;
-        const ctx = lossCtx;
-        const W = lossCanvas.width, H = lossCanvas.height;
-        ctx.clearRect(0, 0, W, H);
-        // white background
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, W, H);
-        const padL = 50, padR = 10, padT = 10, padB = 30;
-        ctx.strokeStyle = '#ccc';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(padL, padT);
-        ctx.lineTo(padL, H - padB);
-        ctx.lineTo(W - padR, H - padB);
-        ctx.stroke();
-
-        if (lossPoints.length === 0) return;
-        const minX = 1;
-        const maxX = Math.max(...lossPoints.map(p => p.epoch));
-        const eps = 1e-12;
-        const useLog = !!(lossLogToggle && lossLogToggle.checked);
-        const yVals = lossPoints.map(p => useLog ? Math.log10(Math.max(p.loss, eps)) : p.loss);
-        const minY = useLog ? Math.min(...yVals) : 0;
-        const maxY = Math.max(...yVals) * 1.05 || 1;
-        const x2px = (x) => padL + (x - minX) / (maxX - minX || 1) * (W - padL - padR);
-        const y2px = (y) => (H - padB) - (y - minY) / (maxY - minY || 1) * (H - padT - padB);
-
-        ctx.strokeStyle = '#2196F3';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        lossPoints.forEach((p, i) => {
-            const px = x2px(p.epoch);
-            const py = y2px(useLog ? Math.log10(Math.max(p.loss, eps)) : p.loss);
-            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-        });
-        ctx.stroke();
-
-        ctx.fillStyle = '#555';
-        ctx.font = '12px sans-serif';
-        ctx.fillText('epoch', W - padR - 40, H - 8);
-        ctx.save();
-        ctx.translate(12, padT + 20);
-        ctx.rotate(-Math.PI / 2);
-        ctx.fillText(useLog ? 'loss (log10)' : 'loss', 0, 0);
-        ctx.restore();
-
-        const ticks = 4;
-        for (let i = 0; i <= ticks; i++) {
-            const yv = minY + (maxY - minY) * (i / ticks);
-            const yy = y2px(yv);
-            ctx.strokeStyle = '#eee';
-            ctx.beginPath();
-            ctx.moveTo(padL, yy);
-            ctx.lineTo(W - padR, yy);
-            ctx.stroke();
-            ctx.fillStyle = '#777';
-            ctx.fillText(yv.toFixed(3), 6, yy + 3);
-        }
-    }
-
-    function formatStatus(s) {
-        if (!s || s.error) return s?.error ? `Error: ${s.error}` : '';
-        const parts = [];
-        if (s.state) parts.push(`State: ${s.state}`);
-        if (typeof s.epoch === 'number') parts.push(`epoch=${s.epoch}`);
-        if (typeof s.loss === 'number') parts.push(`loss=${s.loss.toFixed(5)}`);
-        if (typeof s.accuracy === 'number') parts.push(`acc=${(s.accuracy*100).toFixed(2)}%`);
-        return parts.join('  |  ');
-    }
-
-    function validateLayers(ls) {
-        const errs = [];
-        if (!ls || ls.length === 0) {
-            errs.push('At least one layer is required.');
+            });
+            if (expectedIn !== 10) errs.push(`Final output must be 10, got ${expectedIn}`);
             return errs;
         }
-        // First layer must be Dense(784, ...)
-        if (ls[0].type !== 'Dense') {
-            errs.push('First layer must be Dense.');
-        } else {
-            if (Number(ls[0].inputSize) !== 28 * 28) {
-                errs.push(`First Dense.inputSize must be ${28 * 28}, got ${ls[0].inputSize}`);
-            }
+
+        getConfig() {
+            return this.layers.map(l => l.type === 'Dense' ? { type: 'Dense', inputSize: Number(l.inputSize), outputSize: Number(l.outputSize) } : { type: l.type });
         }
-        // Adjacency shapes for Dense
-        let current = null;
-        let lastDenseOut = null;
-        ls.forEach((l, i) => {
-            if (l.type === 'Dense') {
-                const inS = Number(l.inputSize);
-                const outS = Number(l.outputSize);
-                if (i === 0) {
-                    current = outS;
-                    lastDenseOut = outS;
-                } else {
-                    if (current != null && inS !== current) {
-                        errs.push(`Dense at index ${i} inputSize mismatch: expected ${current}, got ${inS}`);
-                    }
-                    current = outS;
-                    lastDenseOut = outS;
-                }
-            } else {
-                if (current == null) {
-                    errs.push(`Activation at index ${i} cannot be the first layer.`);
-                }
-            }
-        });
-        // Last must be Softmax
-        if (ls[ls.length - 1].type !== 'Softmax') {
-            errs.push('Last layer must be Softmax for MNIST classification.');
-        }
-        if (lastDenseOut !== 10) {
-            errs.push(`Output dimension must be 10 for MNIST classification, got ${lastDenseOut}`);
-        }
-        return errs;
     }
 
-    predictBtn.addEventListener('click', async () => {
-        const imageData = getMnistData();
-        
-        try {
-            const response = await fetch('/api/predict', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image: imageData })
+    /**
+     * Handles Charts using Chart.js.
+     */
+    class TrainingCharts {
+        constructor(lossId, accId, logToggleId) {
+            this.lossCtx = document.getElementById(lossId).getContext('2d');
+            this.accCtx = document.getElementById(accId).getContext('2d');
+            this.logToggle = document.getElementById(logToggleId);
+            
+            this.initCharts();
+            
+            this.logToggle?.addEventListener('change', () => {
+                this.lossChart.options.scales.y.type = this.logToggle.checked ? 'logarithmic' : 'linear';
+                this.lossChart.update();
+            });
+        }
+
+        initCharts() {
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false, // Disable animation for performance during streaming
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false }
+                },
+                elements: {
+                    point: { radius: 0, hitRadius: 10 } // Hide points, show on hover
+                }
+            };
+
+            this.lossChart = new Chart(this.lossCtx, {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'Loss', data: [], borderColor: '#2196F3', borderWidth: 2, tension: 0.1 }] },
+                options: {
+                    ...commonOptions,
+                    plugins: { title: { display: true, text: 'Training Loss' } },
+                    scales: {
+                        x: { title: { display: true, text: 'Epoch' }, ticks: { maxTicksLimit: 5 } },
+                        y: { title: { display: true, text: 'Loss' } }
+                    }
+                }
+            });
+
+            this.accChart = new Chart(this.accCtx, {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'Accuracy', data: [], borderColor: '#4CAF50', borderWidth: 2, tension: 0.1 }] },
+                options: {
+                    ...commonOptions,
+                    plugins: { title: { display: true, text: 'Accuracy' } },
+                    scales: {
+                        x: { title: { display: true, text: 'Epoch' }, ticks: { maxTicksLimit: 5 } },
+                        y: { title: { display: true, text: 'Accuracy' }, min: 0, max: 1 }
+                    }
+                }
+            });
+        }
+
+        reset() {
+            this.lossChart.data.labels = [];
+            this.lossChart.data.datasets[0].data = [];
+            this.accChart.data.labels = [];
+            this.accChart.data.datasets[0].data = [];
+            this.lossChart.update();
+            this.accChart.update();
+        }
+
+        addPoint(epoch, loss, acc) {
+            // Check if we need to decimate (prevent too many points)
+            if (this.lossChart.data.labels.length > 500) {
+                this.lossChart.data.labels.shift();
+                this.lossChart.data.datasets[0].data.shift();
+                this.accChart.data.labels.shift();
+                this.accChart.data.datasets[0].data.shift();
+            }
+
+            this.lossChart.data.labels.push(epoch);
+            this.lossChart.data.datasets[0].data.push(loss);
+            
+            this.accChart.data.labels.push(epoch);
+            this.accChart.data.datasets[0].data.push(acc);
+            
+            // Throttle updates slightly if needed, but for now simple update
+            this.lossChart.update('none');
+            this.accChart.update('none');
+        }
+    }
+
+    /**
+     * Main App Logic.
+     */
+    class App {
+        constructor() {
+            this.canvas = new CanvasHandler('canvas', 'clearBtn');
+            this.builder = new LayerBuilder('layerList', {
+                addDense: document.getElementById('addDenseBtn'),
+                addReLU: document.getElementById('addReLUBtn'),
+                addSigmoid: document.getElementById('addSigmoidBtn'),
+                addSoftmax: document.getElementById('addSoftmaxBtn'),
+                moveUp: document.getElementById('moveUpBtn'),
+                moveDown: document.getElementById('moveDownBtn'),
+                remove: document.getElementById('removeBtn'),
+                reset: document.getElementById('resetDefaultBtn')
             });
             
-            if (!response.ok) throw new Error('Network response was not ok');
+            this.charts = new TrainingCharts('lossChart', 'accChart', 'lossLogScale');
             
-            const result = await response.json();
-            displayResult(result);
-        } catch (error) {
-            console.error('Error:', error);
-            predictionEl.textContent = 'Error';
+            this.initBars();
+            
+            document.getElementById('predictBtn')?.addEventListener('click', this.predict.bind(this));
+            document.getElementById('startTrainBtn')?.addEventListener('click', this.startTraining.bind(this));
+            this.canvas.clearBtn?.addEventListener('click', () => this.resetResults());
         }
-    });
 
-    function getMnistData() {
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = 28;
-        tempCanvas.height = 28;
-        const tempCtx = tempCanvas.getContext('2d');
-        
-        // Center of mass or bounding box normalization could be added here for better accuracy
-        tempCtx.drawImage(canvas, 0, 0, 28, 28);
-        
-        const imgData = tempCtx.getImageData(0, 0, 28, 28);
-        const data = imgData.data;
-        const input = [];
-        
-        for (let i = 0; i < data.length; i += 4) {
-            // Take the R channel (it's grayscale white-on-black)
-            input.push(data[i] / 255.0);
-        }
-        
-        return input;
-    }
-
-    function displayResult(result) {
-        predictionEl.textContent = result.digit;
-        
-        result.probabilities.forEach((prob, i) => {
-            const bar = document.getElementById(`bar-${i}`);
-            const val = document.getElementById(`val-${i}`);
-            
-            // Format percentage (e.g., "98%")
-            // If < 1%, show empty or "<1"
-            const percentage = (prob * 100).toFixed(0);
-            val.textContent = percentage + '%';
-            
-            // Show value only if meaningful probability
-            val.style.opacity = prob > 0.01 ? '1' : '0';
-
-            const height = Math.max(2, prob * 100); // Min height 2%
-            bar.style.height = `${height}%`;
-            
-            if (i === result.digit) {
-                bar.classList.add('active');
-                val.style.fontWeight = 'bold';
-                val.style.color = '#2196F3';
-            } else {
-                bar.classList.remove('active');
-                val.style.fontWeight = 'normal';
-                val.style.color = '#555';
+        initBars() {
+            const container = document.getElementById('bars');
+            if(!container) return;
+            container.innerHTML = '';
+            for(let i=0; i<10; i++) {
+                const w = document.createElement('div');
+                w.className = 'bar-wrapper';
+                w.innerHTML = `<div class="bar-value" id="val-${i}"></div><div class="bar" id="bar-${i}"></div><div class="bar-label">${i}</div>`;
+                container.appendChild(w);
             }
-        });
-        
-        const maxProb = result.probabilities[result.digit];
-        confidenceEl.textContent = `Confidence: ${(maxProb * 100).toFixed(1)}%`;
+        }
+
+        async predict() {
+            const btn = document.getElementById('predictBtn');
+            const predEl = document.getElementById('prediction');
+            const confEl = document.getElementById('confidence');
+            
+            try {
+                btn.disabled = true;
+                predEl.textContent = '...';
+                const res = await fetch('/api/predict', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({image: this.canvas.getImageData()})
+                });
+                if(!res.ok) throw new Error('API Error');
+                const result = await res.json();
+                
+                predEl.textContent = result.digit;
+                confEl.textContent = `Confidence: ${(result.probabilities[result.digit]*100).toFixed(1)}%`;
+                
+                result.probabilities.forEach((p, i) => {
+                    const bar = document.getElementById(`bar-${i}`);
+                    const val = document.getElementById(`val-${i}`);
+                    if(bar) {
+                        const pct = p * 100;
+                        bar.style.height = Math.max(2, pct) + '%';
+                        bar.className = `bar ${i === result.digit ? 'active' : ''}`;
+                        val.textContent = pct > 1 ? pct.toFixed(0)+'%' : '';
+                        val.style.opacity = pct > 1 ? 1 : 0;
+                    }
+                });
+            } catch(e) {
+                console.error(e);
+                predEl.textContent = '?';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        resetResults() {
+            document.getElementById('prediction').textContent = '-';
+            document.getElementById('confidence').textContent = '';
+            document.querySelectorAll('.bar').forEach(b => { b.style.height = '2%'; b.classList.remove('active'); });
+            document.querySelectorAll('.bar-value').forEach(v => v.style.opacity = 0);
+        }
+
+        async startTraining() {
+            const errors = this.builder.validate();
+            if(errors.length) return alert(errors.join('\n'));
+            
+            const btn = document.getElementById('startTrainBtn');
+            const statusEl = document.getElementById('trainStatus');
+            
+            const config = {
+                layers: this.builder.getConfig(),
+                config: {
+                    epochs: Number(document.getElementById('epochs').value),
+                    learningRate: Number(document.getElementById('learningRate').value),
+                    trainSize: Number(document.getElementById('trainSize').value),
+                    testSize: Number(document.getElementById('testSize').value)
+                }
+            };
+            
+            this.charts.reset();
+            statusEl.textContent = 'Starting...';
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch('/api/train/start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(config)
+                });
+                if(!res.ok) throw new Error('Start Failed');
+                const { jobId } = await res.json();
+                
+                if(!window.EventSource) return alert('SSE not supported');
+                
+                const es = new EventSource(`/api/train/stream?jobId=${jobId}`);
+                es.onmessage = (ev) => {
+                    const d = JSON.parse(ev.data);
+                    if(d.error) {
+                        statusEl.textContent = `Error: ${d.error}`;
+                        es.close();
+                        btn.disabled = false;
+                        return;
+                    }
+                    
+                    statusEl.textContent = `Ep: ${d.epoch || '-'} | Loss: ${d.loss?.toFixed(4) || '-'} | Acc: ${(d.accuracy*100)?.toFixed(1)}% | ${d.state}`;
+                    
+                    if(d.epoch != null && d.loss != null) {
+                        this.charts.addPoint(d.epoch, d.loss, d.accuracy || 0);
+                    }
+                    
+                    if(d.state === 'completed' || d.state === 'failed') {
+                        es.close();
+                        btn.disabled = false;
+                    }
+                };
+                es.onerror = () => { es.close(); btn.disabled = false; statusEl.textContent += ' (Connection lost)'; };
+                
+            } catch(e) {
+                statusEl.textContent = e.message;
+                btn.disabled = false;
+            }
+        }
     }
+
+    new App();
 });
