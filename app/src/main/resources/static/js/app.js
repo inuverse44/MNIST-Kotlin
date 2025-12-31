@@ -14,6 +14,127 @@ document.addEventListener('DOMContentLoaded', () => {
     const testSizeInput = document.getElementById('testSize');
     const hiddenSizeInput = document.getElementById('hiddenSize');
 
+    // Layer builder elements
+    const layerListEl = document.getElementById('layerList');
+    const addDenseBtn = document.getElementById('addDenseBtn');
+    const addReLUBtn = document.getElementById('addReLUBtn');
+    const addSigmoidBtn = document.getElementById('addSigmoidBtn');
+    const addSoftmaxBtn = document.getElementById('addSoftmaxBtn');
+    const moveUpBtn = document.getElementById('moveUpBtn');
+    const moveDownBtn = document.getElementById('moveDownBtn');
+    const removeBtn = document.getElementById('removeBtn');
+    const resetDefaultBtn = document.getElementById('resetDefaultBtn');
+
+    // Layer model (UI state)
+    let layers = [];
+    let selectedIndex = -1;
+
+    function setDefaultLayers() {
+        layers = [
+            { type: 'Dense', inputSize: 28 * 28, outputSize: Number(hiddenSizeInput.value) || 100 },
+            { type: 'ReLU' },
+            { type: 'Dense', inputSize: Number(hiddenSizeInput.value) || 100, outputSize: 10 },
+            { type: 'Softmax' }
+        ];
+        selectedIndex = -1;
+        renderLayers();
+    }
+
+    function renderLayers() {
+        layerListEl.innerHTML = '';
+        layers.forEach((layer, idx) => {
+            const row = document.createElement('div');
+            row.className = 'layer-row' + (idx === selectedIndex ? ' selected' : '');
+            row.addEventListener('click', () => { selectedIndex = idx; renderLayers(); });
+
+            const typeSpan = document.createElement('span');
+            typeSpan.className = 'layer-type';
+            typeSpan.textContent = `${idx}. ${layer.type}`;
+            row.appendChild(typeSpan);
+
+            if (layer.type === 'Dense') {
+                const inInput = document.createElement('input');
+                inInput.type = 'number';
+                inInput.min = '1';
+                inInput.value = layer.inputSize;
+                inInput.title = 'inputSize';
+                inInput.addEventListener('change', (e) => {
+                    layer.inputSize = Number(e.target.value);
+                });
+                row.appendChild(inInput);
+
+                const arrow = document.createElement('span');
+                arrow.textContent = ' → ';
+                row.appendChild(arrow);
+
+                const outInput = document.createElement('input');
+                outInput.type = 'number';
+                outInput.min = '1';
+                outInput.value = layer.outputSize;
+                outInput.title = 'outputSize';
+                outInput.addEventListener('change', (e) => {
+                    layer.outputSize = Number(e.target.value);
+                    // propagate to next Dense inputSize if present
+                    const next = layers[idx + 1];
+                    if (next && next.type === 'Dense') {
+                        next.inputSize = layer.outputSize;
+                        // keep UI in sync
+                        renderLayers();
+                    }
+                });
+                row.appendChild(outInput);
+            }
+
+            layerListEl.appendChild(row);
+        });
+    }
+
+    // Layer builder controls
+    addDenseBtn?.addEventListener('click', () => {
+        const prev = layers[selectedIndex >= 0 ? selectedIndex : layers.length - 1];
+        const defaultIn = prev && prev.type === 'Dense' ? prev.outputSize : (layers.length === 0 ? 28 * 28 : 10);
+        layers.splice(selectedIndex >= 0 ? selectedIndex + 1 : layers.length, 0, { type: 'Dense', inputSize: defaultIn, outputSize: 100 });
+        selectedIndex = (selectedIndex >= 0 ? selectedIndex + 1 : layers.length - 1);
+        renderLayers();
+    });
+    addReLUBtn?.addEventListener('click', () => { addAct('ReLU'); });
+    addSigmoidBtn?.addEventListener('click', () => { addAct('Sigmoid'); });
+    addSoftmaxBtn?.addEventListener('click', () => { addAct('Softmax'); });
+    function addAct(name) {
+        layers.splice(selectedIndex >= 0 ? selectedIndex + 1 : layers.length, 0, { type: name });
+        selectedIndex = (selectedIndex >= 0 ? selectedIndex + 1 : layers.length - 1);
+        renderLayers();
+    }
+    moveUpBtn?.addEventListener('click', () => {
+        if (selectedIndex > 0) {
+            const tmp = layers[selectedIndex - 1];
+            layers[selectedIndex - 1] = layers[selectedIndex];
+            layers[selectedIndex] = tmp;
+            selectedIndex--;
+            renderLayers();
+        }
+    });
+    moveDownBtn?.addEventListener('click', () => {
+        if (selectedIndex >= 0 && selectedIndex < layers.length - 1) {
+            const tmp = layers[selectedIndex + 1];
+            layers[selectedIndex + 1] = layers[selectedIndex];
+            layers[selectedIndex] = tmp;
+            selectedIndex++;
+            renderLayers();
+        }
+    });
+    removeBtn?.addEventListener('click', () => {
+        if (selectedIndex >= 0) {
+            layers.splice(selectedIndex, 1);
+            selectedIndex = -1;
+            renderLayers();
+        }
+    });
+    resetDefaultBtn?.addEventListener('click', () => setDefaultLayers());
+
+    // Initialize layer builder
+    setDefaultLayers();
+
     let isDrawing = false;
 
     // Init probability bars
@@ -101,12 +222,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---- Training ----
     startTrainBtn?.addEventListener('click', async () => {
         const params = {
-            layers: [
-                { type: 'Dense', inputSize: 28 * 28, outputSize: Number(hiddenSizeInput.value) },
-                { type: 'ReLU' },
-                { type: 'Dense', inputSize: Number(hiddenSizeInput.value), outputSize: 10 },
-                { type: 'Softmax' }
-            ],
+            layers: layers.map(l => ({
+                type: l.type,
+                ...(l.type === 'Dense' ? { inputSize: Number(l.inputSize), outputSize: Number(l.outputSize) } : {})
+            })),
             config: {
                 epochs: Number(epochsInput.value),
                 learningRate: Number(lrInput.value),

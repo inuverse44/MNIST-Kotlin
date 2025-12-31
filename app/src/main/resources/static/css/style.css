@@ -130,3 +130,15 @@ button:active {
 .bar.active {
     background-color: #2196F3;
 }
+
+/* Layer builder */
+.layer-builder { margin-top: 12px; text-align: left; }
+.layer-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.layer-controls button { padding: 6px 10px; border: 1px solid #ddd; background: #fff; border-radius: 6px; cursor: pointer; }
+.layer-controls button:hover { background: #f3f3f3; }
+.layer-list { border: 1px solid #e0e0e0; border-radius: 8px; background: #fff; padding: 8px; max-height: 280px; overflow: auto; }
+.layer-row { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 6px; cursor: pointer; }
+.layer-row input[type=number] { width: 100px; padding: 4px 6px; border: 1px solid #ddd; border-radius: 6px; }
+.layer-row:hover { background: #f7f7f7; }
+.layer-row.selected { background: #e8f2ff; border: 1px solid #cde0ff; }
+.layer-type { width: 120px; font-weight: 600; }

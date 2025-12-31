@@ -32,6 +32,21 @@
         <hr />
         <h2>Train (Experimental)</h2>
         <div class="train-section">
+            <h3>Layer Builder</h3>
+            <div class="layer-builder" id="layerBuilder">
+                <div class="layer-controls">
+                    <button id="addDenseBtn">+ Dense</button>
+                    <button id="addReLUBtn">+ ReLU</button>
+                    <button id="addSigmoidBtn">+ Sigmoid</button>
+                    <button id="addSoftmaxBtn">+ Softmax</button>
+                    <button id="moveUpBtn">↑ Move Up</button>
+                    <button id="moveDownBtn">↓ Move Down</button>
+                    <button id="removeBtn">🗑 Remove</button>
+                    <button id="resetDefaultBtn">Reset Default</button>
+                </div>
+                <div class="layer-list" id="layerList"></div>
+            </div>
+
             <div class="form-row">
                 <label>Epochs</label>
                 <input id="epochs" type="number" value="5" min="1" />
