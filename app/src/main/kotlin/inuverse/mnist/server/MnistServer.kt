@@ -27,8 +27,7 @@ class MnistServer(private val modelPath: String) {
         // Cloud Run sets the PORT environment variable
         val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
 
-        val network = createNetwork()
-        loadModel(network)
+        val network = loadOrCreateNetwork()
 
         println("🚀 Starting server on http://0.0.0.0:$port")
         embeddedServer(Netty, port = port, host = "0.0.0.0") {
@@ -74,16 +73,24 @@ class MnistServer(private val modelPath: String) {
         return network
     }
 
-    private fun loadModel(network: Network) {
+    private fun loadOrCreateNetwork(): Network {
         val file = File(modelPath)
         if (file.exists()) {
-            try {
-                ModelLoader().load(modelPath, network)
-            } catch (e: Exception) {
-                println("🐶Failed to load model: ${e.message}")
+            // 新形式の読込を試み、失敗したらデフォルト構成に旧形式の読込を試行
+            return kotlin.runCatching {
+                ModelLoader().loadToNewNetwork(modelPath, learningRate = 0.01)
+            }.getOrElse { specError ->
+                println("🐶Failed to load spec model: ${specError.message}. Falling back to default architecture.")
+                val fallback = createNetwork()
+                kotlin.runCatching {
+                    ModelLoader().load(modelPath, fallback)
+                }.onFailure { legacyError ->
+                    println("🐶Failed to load legacy model: ${legacyError.message}")
+                }
+                fallback
             }
-        } else {
-            println("🐶Model file not found at $modelPath. Using random weights (predictions will be random).")
         }
+        println("🐶Model file not found at $modelPath. Using random weights (predictions will be random).")
+        return createNetwork()
     }
 }

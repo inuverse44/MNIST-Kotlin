@@ -92,12 +92,9 @@ class MnistLearningService(
     fun runInferenceDemo(config: TrainingConfig, modelPath: String) {
         println("\n🐶Starting Inference Demo using Saved Model...")
 
-        // 1. 空のネットワークを構築（アーキテクチャは学習時と同じにする必要がある）
-        val network = buildNetwork(config)
-
-        // 2. 重みをロード
-        try {
-            ModelLoader().load(modelPath, network)
+        // 1. JSON (ModelSpec) から動的にネットワークを構築
+        val network = try {
+            ModelLoader().loadToNewNetwork(modelPath, learningRate = config.learningRate)
         } catch (e: Exception) {
             println("   Failed to load model: ${e.message}")
             return
