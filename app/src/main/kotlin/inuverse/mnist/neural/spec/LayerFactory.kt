@@ -28,13 +28,15 @@ object LayerFactory {
                     val outSize = requireNotNull(entry.outputSize) { "Dense.outputSize is required" }
                     val dense = Dense(inSize, outSize)
 
-                    // パラメタ適用（推論前提）。weightsは [outSize x inSize] の行優先。
-                    val w = requireNotNull(entry.weights) { "Dense.weights is required" }
-                    val b = requireNotNull(entry.biases) { "Dense.biases is required" }
-                    require(w.size == outSize * inSize) { "Weights size mismatch: expected ${outSize * inSize}, got ${w.size}" }
-                    require(b.size == outSize) { "Bias size mismatch: expected $outSize, got ${b.size}" }
-                    dense.weights = DenseMatrix(outSize, inSize, w)
-                    dense.bias = DenseVector(outSize, b)
+                    // パラメタが与えられていれば適用。なければDenseが持つ乱数初期化を使用して学習に備える。
+                    val w = entry.weights
+                    val b = entry.biases
+                    if (w != null && b != null) {
+                        require(w.size == outSize * inSize) { "Weights size mismatch: expected ${outSize * inSize}, got ${w.size}" }
+                        require(b.size == outSize) { "Bias size mismatch: expected $outSize, got ${b.size}" }
+                        dense.weights = DenseMatrix(outSize, inSize, w)
+                        dense.bias = DenseVector(outSize, b)
+                    }
 
                     network.add(dense)
                 }
@@ -48,4 +50,3 @@ object LayerFactory {
         return network
     }
 }
-
