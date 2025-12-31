@@ -1,5 +1,6 @@
 package inuverse.mnist.neural
 
+import inuverse.mnist.EPS
 import inuverse.mnist.model.DenseVector
 import inuverse.mnist.neural.layer.Softmax
 import inuverse.mnist.neural.loss.CrossEntropy
@@ -15,7 +16,7 @@ class SoftmaxCrossEntropyTest {
         val out = layer.forward(input)
         var sum = 0.0
         for (i in 0 until out.size) sum += out[i]
-        assertEquals(1.0, sum, 1e-12)
+        assertEquals(1.0, sum, EPS)
         for (i in 0 until out.size) assertTrue(out[i] >= 0.0)
     }
 
@@ -31,4 +32,3 @@ class SoftmaxCrossEntropyTest {
         assertTrue(grad[2] < 0.0)
     }
 }
-
