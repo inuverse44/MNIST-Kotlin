@@ -10,7 +10,8 @@ class ModelLoader {
 
     /**
      * ファイルからパラメータを読み込み、ネットワークに適用する
-     * 注意: Networkの構造（レイヤーの順序と種類）は、保存時と同じである必要があります。
+     * 注意: Networkの構造保存時と同じである必要がある
+     * Networkの構造も保存しておきたいなあ
      */
     fun load(filepath: String, network: Network) {
         val file = File(filepath)
