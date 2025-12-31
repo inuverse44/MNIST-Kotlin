@@ -9,7 +9,8 @@ class DenseBackwardTest {
     fun backward_shapes_match() {
         val layer = Dense(inputSize = 3, outputSize = 2)
         val x = DenseVector(3, doubleArrayOf(1.0, -2.0, 0.5))
-        val _ = layer.forward(x)
+        // forward pass to cache inputs for backward
+        layer.forward(x)
         // upstream gradient same shape as y (2)
         val gy = DenseVector(2, doubleArrayOf(0.1, -0.2))
         val gx = layer.backward(gy)
@@ -21,4 +22,3 @@ class DenseBackwardTest {
         assertEquals(3, layer.weightsGradient.cols)
     }
 }
-

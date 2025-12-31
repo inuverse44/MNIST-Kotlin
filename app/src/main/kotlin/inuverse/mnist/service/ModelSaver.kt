@@ -8,11 +8,13 @@ import inuverse.mnist.neural.layer.Layer
 import inuverse.mnist.neural.spec.LayerEntry
 import inuverse.mnist.neural.spec.ModelSpec
 import java.io.File
+import org.slf4j.LoggerFactory
 
 class ModelSaver {
     private val mapper = jacksonObjectMapper().apply {
         enable(SerializationFeature.INDENT_OUTPUT)
     }
+    private val logger = LoggerFactory.getLogger(ModelSaver::class.java)
 
     /**
      * ネットワークのアーキテクチャとパラメタを JSON (ModelSpec v1) として保存する。
@@ -43,6 +45,6 @@ class ModelSaver {
 
         val spec = ModelSpec(version = "1", layers = entries)
         mapper.writeValue(File(filepath), spec)
-        println("💾 Model saved to $filepath (ModelSpec v1)")
+        logger.info("Model saved to $filepath (ModelSpec v1)")
     }
 }

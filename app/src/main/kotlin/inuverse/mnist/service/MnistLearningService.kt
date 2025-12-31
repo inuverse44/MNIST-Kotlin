@@ -15,27 +15,30 @@ import kotlin.random.Random
 /**
  * MNIST学習アプリケーションのユースケースを提供するサービス
  */
+import org.slf4j.LoggerFactory
+
 class MnistLearningService(
     private val datasetService: MnistDatasetService
 ) {
+    private val logger = LoggerFactory.getLogger(MnistLearningService::class.java)
 
     /**
      * 設定に基づいて学習プロセス全体を実行する
      */
     fun runTraining(config: TrainingConfig) {
-        println("🐶 Configuration: $config")
+        logger.info("🐶 Configuration: $config")
 
         // データ準備
-        println("🐶 Preparing Dataset...")
+        logger.info("🐶 Preparing Dataset...")
         val allData = datasetService.getAllDataset().shuffled(Random(config.randomSeed))
         
         val trainData = allData.take(config.trainSize)
         val testData = allData.drop(config.trainSize).take(config.testSize)
         
-        println("   Train: ${trainData.size}, Test: ${testData.size}")
+        logger.info("   Train: ${trainData.size}, Test: ${testData.size}")
 
         // ネットワークの構築
-        println("🐶 Building Network...")
+        logger.info("🐶 Building Network...")
         val network = buildNetwork(config)
 
         // 学習
@@ -49,12 +52,12 @@ class MnistLearningService(
 //        println("\n🐶Check: label: $actualLabel")
 
         // 可視化
-        println("\n🐶 Generating Training Graphs...")
+        logger.info("🐶 Generating Training Graphs...")
         LossPlotter().plot(history)
 
-        println("🐶Final Evaluation on Test Data...")
+        logger.info("🐶Final Evaluation on Test Data...")
         val finalAccuracy = trainer.evaluate(testData)
-        println("   Test Accuracy: %.2f%%\n".format(finalAccuracy * 100))
+        logger.info("   Test Accuracy: %.2f%%".format(finalAccuracy * 100))
         
         // モデルの保存
         ModelSaver().save(network, "mnist_model.json")
@@ -90,13 +93,13 @@ class MnistLearningService(
      * 保存されたモデルをロードして推論のデモを行う
      */
     fun runInferenceDemo(config: TrainingConfig, modelPath: String) {
-        println("\n🐶Starting Inference Demo using Saved Model...")
+        logger.info("🐶Starting Inference Demo using Saved Model...")
 
         // 1. JSON (ModelSpec) から動的にネットワークを構築
         val network = try {
             ModelLoader().loadToNewNetwork(modelPath, learningRate = config.learningRate)
         } catch (e: Exception) {
-            println("   Failed to load model: ${e.message}")
+            logger.warn("Failed to load model: ${e.message}")
             return
         }
 
@@ -104,7 +107,7 @@ class MnistLearningService(
         val allData = datasetService.getAllDataset().shuffled(Random(config.randomSeed))
         val testSamples = allData.drop(config.trainSize).take(5) // 5件だけピックアップ
 
-        println("\n--- Inference Results ---")
+        logger.info("--- Inference Results ---")
         var correct = 0
         for ((index, sample) in testSamples.withIndex()) {
             val output = network.predict(sample.input)
@@ -113,12 +116,12 @@ class MnistLearningService(
             val actualLabel = argmax(sample.label)
             val probability = output[predictedLabel] * 100 // onehot表現の出力ベクトルには各成分に重みがある。
 
-            val result = if (predictedLabel == actualLabel) "👍OK" else "👎"
+            val result = if (predictedLabel == actualLabel) "OK" else "NG"
             if (predictedLabel == actualLabel) correct++
 
-            println("Sample #$index: Actual [$actualLabel] -> Predicted [$predictedLabel] (Prob: %.2f%%) $result".format(probability))
+            logger.info("Sample #$index: Actual [$actualLabel] -> Predicted [$predictedLabel] (Prob: %.2f%%) $result".format(probability))
         }
-        println("-------------------------")
+        logger.info("-------------------------")
     }
 
     private fun argmax(vector: Vector): Int {

@@ -6,9 +6,11 @@ import inuverse.mnist.neural.Network
 import inuverse.mnist.neural.spec.LayerFactory
 import inuverse.mnist.neural.spec.ModelSpec
 import java.io.File
+import org.slf4j.LoggerFactory
 
 class ModelLoader {
     private val mapper = jacksonObjectMapper()
+    private val logger = LoggerFactory.getLogger(ModelLoader::class.java)
 
     /**
      * 新形式 (ModelSpec v1) を読み込み、ネットワークを動的に構築して返す。
@@ -20,12 +22,12 @@ class ModelLoader {
             throw IllegalArgumentException("Model file not found: $filepath")
         }
 
-        println("🐶Loading model (ModelSpec) from $filepath ...")
+        logger.info("Loading model (ModelSpec) from $filepath ...")
 
         // まず ModelSpec を試みる
         val spec: ModelSpec = mapper.readValue(file)
         val network = LayerFactory.buildNetwork(spec, learningRate)
-        println("🐶Model loaded successfully (layers=${spec.layers.size})!")
+        logger.info("Model loaded successfully (layers=${spec.layers.size})")
         return network
     }
 
@@ -45,12 +47,12 @@ class ModelLoader {
             throw IllegalArgumentException("Given file is ModelSpec. Use loadToNewNetwork() to build network dynamically.")
         }
 
-        println("🐶Loading legacy model into existing network from $filepath ...")
+        logger.info("Loading legacy model into existing network from $filepath ...")
         val layersData: List<Map<String, Any>> = mapper.readValue(file)
 
         val networkLayers = network.getLayers()
         if (layersData.size != networkLayers.size) {
-            println("🐶Warning: Layer count mismatch! File: ${layersData.size}, Network: ${networkLayers.size}")
+            logger.warn("Layer count mismatch! File: ${layersData.size}, Network: ${networkLayers.size}")
         }
 
         for ((index, layerData) in layersData.withIndex()) {
@@ -59,12 +61,12 @@ class ModelLoader {
             val params = layerData["params"] as Map<String, Any>
             val targetLayer = networkLayers[index]
             if (targetLayer.getName() != layerName) {
-                println("🐶Warning: Layer type mismatch at index $index. File: $layerName, Network: ${targetLayer.getName()}")
+                logger.warn("Layer type mismatch at index $index. File: $layerName, Network: ${targetLayer.getName()}")
             }
             if (params.isNotEmpty()) {
                 targetLayer.loadParameters(params)
             }
         }
-        println("🐶Model (legacy) loaded successfully!")
+        logger.info("Model (legacy) loaded successfully")
     }
 }

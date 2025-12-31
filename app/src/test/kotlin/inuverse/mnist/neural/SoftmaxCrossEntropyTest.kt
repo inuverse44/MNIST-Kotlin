@@ -25,7 +25,8 @@ class SoftmaxCrossEntropyTest {
         val loss = CrossEntropy()
         val y = DenseVector(3, doubleArrayOf(0.2, 0.3, 0.5))
         val t = DenseVector(3, doubleArrayOf(0.0, 0.0, 1.0))
-        val _ = loss.forward(y, t)
+        // compute loss to initialize any internal state (not strictly necessary)
+        loss.forward(y, t)
         val grad = loss.backward(y, t)
         assertEquals(3, grad.size)
         // grad[2] should be negative and magnitude ~ 1/y[2]
