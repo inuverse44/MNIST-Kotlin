@@ -1,5 +1,7 @@
 package inuverse.mnist.service
 
+import inuverse.mnist.constants.MnistConst
+import inuverse.mnist.model.Mnist1DImage
 import inuverse.mnist.model.TrainingConfig
 import inuverse.mnist.model.Vector
 import inuverse.mnist.neural.Network
@@ -9,6 +11,7 @@ import inuverse.mnist.neural.layer.Softmax
 import inuverse.mnist.neural.loss.CrossEntropy
 import inuverse.mnist.neural.optimizer.StochasticGradientDescent
 import inuverse.mnist.presentation.LossPlotter
+import org.jetbrains.letsPlot.commons.intern.typedGeometry.Vec
 import kotlin.random.Random
 
 
@@ -42,6 +45,12 @@ class MnistLearningService(
         val trainer = MnistTrainer(network, trainData, testData)
         val history = trainer.train(config.epochs)
 
+        val prediction = getPrediction(testData[0].input, network)
+        val actualLabel = testData[0].label
+        println("\n🐶Check: input: ${testData[0].input}")
+        println("\n🐶Check: prediction: $prediction")
+        println("\n🐶Check: label: $actualLabel")
+
         // 可視化
         println("\n🐶 Generating Training Graphs...")
         LossPlotter().plot(history)
@@ -52,6 +61,17 @@ class MnistLearningService(
         
         // モデルの保存
         ModelSaver().save(network, "mnist_model.json")
+    }
+
+    /**
+     * 784成分ベクトルを入れて、もっとも正解っぽいonehot表現のベクトルを返してくれるやつ
+     * @param input 入力の784成分ベクトル
+     * @param network 最適化後のネットワーク
+     * @return Vector onehot表現の正解っぽいベクトル
+     */
+    fun getPrediction(input: Vector, network: Network): Vector {
+        val prediction = network.predict(input)
+        return prediction
     }
 
     private fun buildNetwork(config: TrainingConfig): Network {
@@ -97,9 +117,9 @@ class MnistLearningService(
             
             val predictedLabel = argmax(output)
             val actualLabel = argmax(sample.label)
-            val probability = output[predictedLabel] * 100
+            val probability = output[predictedLabel] * 100 // onehot表現の出力ベクトルには各成分に重みがある。
 
-            val result = if (predictedLabel == actualLabel) "✅ OK" else "❌ NG"
+            val result = if (predictedLabel == actualLabel) "👍OK" else "👎"
             if (predictedLabel == actualLabel) correct++
 
             println("Sample #$index: Actual [$actualLabel] -> Predicted [$predictedLabel] (Prob: %.2f%%) $result".format(probability))
