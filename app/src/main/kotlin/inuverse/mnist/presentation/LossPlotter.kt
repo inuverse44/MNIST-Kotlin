@@ -7,8 +7,10 @@ import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.letsPlot
 import org.jetbrains.letsPlot.label.ggtitle
 import org.jetbrains.letsPlot.scale.scaleYContinuous
+import org.slf4j.LoggerFactory
 
 class LossPlotter {
+    private val logger = LoggerFactory.getLogger(LossPlotter::class.java)
     fun plot(history: List<MnistTrainer.TrainingHistory>, filename: String = "training_history.png") {
         val epochs = history.map { it.epoch }
         val losses = history.map { it.loss }
@@ -41,6 +43,6 @@ class LossPlotter {
         ggsave(lossPlot, "loss_plot.png")
         ggsave(accPlot, "accuracy_plot.png")
         
-        println("🐶Graphs saved: loss_plot.png, accuracy_plot.png")
+        logger.info("Graphs saved: loss_plot.png, accuracy_plot.png")
     }
 }

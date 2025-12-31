@@ -3,15 +3,37 @@ package inuverse.mnist.service
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import inuverse.mnist.neural.Network
+import inuverse.mnist.neural.spec.LayerFactory
+import inuverse.mnist.neural.spec.ModelSpec
 import java.io.File
+import org.slf4j.LoggerFactory
 
 class ModelLoader {
     private val mapper = jacksonObjectMapper()
+    private val logger = LoggerFactory.getLogger(ModelLoader::class.java)
 
     /**
-     * ファイルからパラメータを読み込み、ネットワークに適用する
-     * 注意: Networkの構造保存時と同じである必要がある
-     * Networkの構造も保存しておきたいなあ
+     * 新形式 (ModelSpec v1) を読み込み、ネットワークを動的に構築して返す。
+     * 旧形式（List<Map<...>>>）を検出した場合は例外で通知する。
+     */
+    fun loadToNewNetwork(filepath: String, learningRate: Double = 0.01): Network {
+        val file = File(filepath)
+        if (!file.exists()) {
+            throw IllegalArgumentException("Model file not found: $filepath")
+        }
+
+        logger.info("Loading model (ModelSpec) from $filepath ...")
+
+        // まず ModelSpec を試みる
+        val spec: ModelSpec = mapper.readValue(file)
+        val network = LayerFactory.buildNetwork(spec, learningRate)
+        logger.info("Model loaded successfully (layers=${spec.layers.size})")
+        return network
+    }
+
+    /**
+     * 互換用の旧API: 既存ネットワークにパラメタを適用。
+     * 新形式のファイルが与えられた場合は、構成が異なるためこのAPIでは扱わず例外にする。
      */
     fun load(filepath: String, network: Network) {
         val file = File(filepath)
@@ -19,37 +41,32 @@ class ModelLoader {
             throw IllegalArgumentException("Model file not found: $filepath")
         }
 
-        println("🐶Loading model from $filepath ...")
-
-        // JSONを List<Map<String, Any>> として読み込む
-        // 構造: [ { "type": "Dense", "params": {...} }, ... ]
-        val layersData: List<Map<String, Any>> = mapper.readValue(file)
-        
-        val networkLayers = network.getLayers() // NetworkにgetLayersを追加する必要がある
-
-        if (layersData.size != networkLayers.size) {
-            println("🐶Warning: Layer count mismatch! File: ${layersData.size}, Network: ${networkLayers.size}")
+        // 旧形式: [ {"type":"Dense", "params":{...}}, ... ] を読み込む想定
+        val anyTree = mapper.readTree(file)
+        if (anyTree.has("version") && anyTree.has("layers")) {
+            throw IllegalArgumentException("Given file is ModelSpec. Use loadToNewNetwork() to build network dynamically.")
         }
 
-        // 各レイヤーにパラメータをセット
+        logger.info("Loading legacy model into existing network from $filepath ...")
+        val layersData: List<Map<String, Any>> = mapper.readValue(file)
+
+        val networkLayers = network.getLayers()
+        if (layersData.size != networkLayers.size) {
+            logger.warn("Layer count mismatch! File: ${layersData.size}, Network: ${networkLayers.size}")
+        }
+
         for ((index, layerData) in layersData.withIndex()) {
             if (index >= networkLayers.size) break
-            
             val layerName = layerData["type"] as String
             val params = layerData["params"] as Map<String, Any>
-            
             val targetLayer = networkLayers[index]
-            
-            // 型チェック（簡易）
             if (targetLayer.getName() != layerName) {
-                println("🐶Warning: Layer type mismatch at index $index. File: $layerName, Network: ${targetLayer.getName()}")
+                logger.warn("Layer type mismatch at index $index. File: $layerName, Network: ${targetLayer.getName()}")
             }
-
-            // パラメータ読み込み
             if (params.isNotEmpty()) {
                 targetLayer.loadParameters(params)
             }
         }
-        println("🐶Model loaded successfully!")
+        logger.info("Model (legacy) loaded successfully")
     }
 }

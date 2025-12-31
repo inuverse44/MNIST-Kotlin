@@ -1,6 +1,7 @@
 package inuverse.mnist.server
 
 import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import inuverse.mnist.constants.MnistConst
 import io.ktor.serialization.jackson.*
 import io.ktor.server.application.*
@@ -20,17 +21,20 @@ import inuverse.mnist.neural.optimizer.StochasticGradientDescent
 import inuverse.mnist.service.ModelLoader
 import inuverse.mnist.model.DenseVector
 import java.io.File
+import org.slf4j.LoggerFactory
 
 class MnistServer(private val modelPath: String) {
+
+    private val logger = LoggerFactory.getLogger(MnistServer::class.java)
+    private val json = jacksonObjectMapper()
 
     fun start() {
         // Cloud Run sets the PORT environment variable
         val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
 
-        val network = createNetwork()
-        loadModel(network)
+        val network = loadOrCreateNetwork()
 
-        println("🚀 Starting server on http://0.0.0.0:$port")
+        logger.info("🚀 Starting server on http://0.0.0.0:$port")
         embeddedServer(Netty, port = port, host = "0.0.0.0") {
             install(ContentNegotiation) {
                 jackson {
@@ -40,16 +44,39 @@ class MnistServer(private val modelPath: String) {
             
             routing {
                 staticResources("/", "static", index = "index.html")
+
+                get("/healthz") {
+                    call.respondText("ok")
+                }
+
+                get("/version") {
+                    val modelFile = File(modelPath)
+                    val exists = modelFile.exists()
+                    val info = mutableMapOf<String, Any>(
+                        "modelPath" to modelPath,
+                        "exists" to exists
+                    )
+                    if (exists) {
+                        info["size"] = modelFile.length()
+                        runCatching {
+                            val tree = json.readTree(modelFile)
+                            if (tree.has("version")) {
+                                info["modelSpecVersion"] = tree.get("version").asText()
+                            }
+                        }
+                    }
+                    call.respond(info)
+                }
                 
                 post("/api/predict") {
                     val req = call.receive<PredictRequest>()
                     
-                    if (req.image.size != MnistConst.Mnist1DLength) {
-                        call.respond(mapOf("error" to "Image must be 784 pixels. Received: ${req.image.size}"))
+                    if (req.image.size != MnistConst.MNIST_INPUT_SIZE) {
+                        call.respond(mapOf("error" to "Image must be ${MnistConst.MNIST_INPUT_SIZE} pixels. Received: ${req.image.size}"))
                         return@post
                     }
                     
-                    val inputVector = DenseVector(MnistConst.Mnist1DLength, req.image.toDoubleArray())
+                    val inputVector = DenseVector(MnistConst.MNIST_INPUT_SIZE, req.image.toDoubleArray())
                     val outputVector = network.predict(inputVector)
                     
                     val probabilities = outputVector.getData().toList()
@@ -67,23 +94,31 @@ class MnistServer(private val modelPath: String) {
             loss = CrossEntropy(),
             optimizer = StochasticGradientDescent(0.01) // Not used for inference
         )
-        network.add(Dense(MnistConst.Mnist1DLength, 100))
+        network.add(Dense(MnistConst.MNIST_INPUT_SIZE, 100))
         network.add(ReLU())
         network.add(Dense(100, 10))
         network.add(Softmax())
         return network
     }
 
-    private fun loadModel(network: Network) {
+    private fun loadOrCreateNetwork(): Network {
         val file = File(modelPath)
         if (file.exists()) {
-            try {
-                ModelLoader().load(modelPath, network)
-            } catch (e: Exception) {
-                println("🐶Failed to load model: ${e.message}")
+            // 新形式の読込を試み、失敗したらデフォルト構成に旧形式の読込を試行
+            return kotlin.runCatching {
+                ModelLoader().loadToNewNetwork(modelPath, learningRate = 0.01)
+            }.getOrElse { specError ->
+                logger.warn("Failed to load spec model: ${specError.message}. Falling back to default architecture.")
+                val fallback = createNetwork()
+                kotlin.runCatching {
+                    ModelLoader().load(modelPath, fallback)
+                }.onFailure { legacyError ->
+                    logger.warn("Failed to load legacy model: ${legacyError.message}")
+                }
+                fallback
             }
-        } else {
-            println("🐶Model file not found at $modelPath. Using random weights (predictions will be random).")
         }
+        logger.warn("Model file not found at $modelPath. Using random weights (predictions will be random).")
+        return createNetwork()
     }
 }

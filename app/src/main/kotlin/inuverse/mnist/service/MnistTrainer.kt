@@ -3,12 +3,14 @@ package inuverse.mnist.service
 import inuverse.mnist.model.Vector
 import inuverse.mnist.neural.Network
 import inuverse.mnist.service.MnistDatasetService.DataPair
+import org.slf4j.LoggerFactory
 
 class MnistTrainer(
     private val network: Network,
     private val trainData: List<DataPair>,
     private val testData: List<DataPair>
 ) {
+    private val logger = LoggerFactory.getLogger(MnistTrainer::class.java)
 
     data class TrainingHistory(
         val epoch: Int,
@@ -23,8 +25,8 @@ class MnistTrainer(
      * @return 学習履歴のリスト
      */
     fun train(epochs: Int, reportInterval: Int = 1): List<TrainingHistory> {
-        println("\n🐶 Start Training for $epochs epochs...")
-        println("   Train Data: ${trainData.size}, Test Data: ${testData.size}")
+        logger.info("Start Training for $epochs epochs...")
+        logger.info("Train Data: ${trainData.size}, Test Data: ${testData.size}")
 
         val history = mutableListOf<TrainingHistory>()
 
@@ -50,10 +52,10 @@ class MnistTrainer(
 
             if (epoch % reportInterval == 0 || epoch == 1 || epoch == epochs) {
                 val accuracyPercent = "%.2f".format(accuracy * 100)
-                println("Epoch $epoch/$epochs | Loss: %.6f | Accuracy: $accuracyPercent%% | Time: ${duration}ms".format(avgLoss))
+                logger.info("Epoch $epoch/$epochs | Loss: %.6f | Accuracy: $accuracyPercent%% | Time: ${duration}ms".format(avgLoss))
             }
         }
-        println("✨ Training Finished!")
+        logger.info("Training Finished!")
         return history
     }
 
