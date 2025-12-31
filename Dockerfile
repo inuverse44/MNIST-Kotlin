@@ -11,9 +11,9 @@ WORKDIR /app
 # Copy the Fat JAR from build stage
 COPY --from=build /home/gradle/src/app/build/libs/app-all.jar /app/app.jar
 
-# Copy the trained model (assuming it's in the root context)
-# You must have mnist_model.json in your project root locally!
-COPY app/mnist_model.json /app/mnist_model.json
+# Model is not bundled in the image anymore. Provide it via env/volume.
+# Set a default MODEL_PATH that can be overridden at runtime.
+ENV MODEL_PATH=/app/mnist_model.json
 
 # Expose port (Cloud Run sets PORT env var, but 8080 is common default)
 EXPOSE 8080
