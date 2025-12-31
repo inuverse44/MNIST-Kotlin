@@ -3,9 +3,6 @@ package inuverse.mnist.server
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import inuverse.mnist.constants.MnistConst
-import inuverse.mnist.repository.DataLoadContext
-import inuverse.mnist.repository.MnistImageLoadStrategyImpl
-import inuverse.mnist.repository.MnistLabelLoadStrategyImpl
 import io.ktor.serialization.jackson.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
@@ -23,18 +20,10 @@ import inuverse.mnist.neural.loss.CrossEntropy
 import inuverse.mnist.neural.optimizer.StochasticGradientDescent
 import inuverse.mnist.service.ModelLoader
 import inuverse.mnist.model.DenseVector
-import inuverse.mnist.neural.spec.LayerEntry
-import inuverse.mnist.neural.spec.LayerFactory
-import inuverse.mnist.neural.spec.ModelSpec
-import inuverse.mnist.service.MnistDatasetService
-import inuverse.mnist.service.MnistTrainer
-import inuverse.mnist.service.ModelSaver
-import inuverse.mnist.model.TrainingConfig
+import inuverse.mnist.server.TrainingManager
+import inuverse.mnist.server.TrainStartRequest
 import java.io.File
 import org.slf4j.LoggerFactory
-import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
 
 class MnistServer(private val modelPath: String) {
@@ -42,8 +31,7 @@ class MnistServer(private val modelPath: String) {
     private val logger = LoggerFactory.getLogger(MnistServer::class.java)
     private val json = jacksonObjectMapper()
     private val networkRef: AtomicReference<Network> = AtomicReference()
-    private val executor = Executors.newSingleThreadExecutor()
-    private val jobs = ConcurrentHashMap<String, TrainJobStatus>()
+    private val trainingManager = TrainingManager(modelPath) { net -> networkRef.set(net) }
 
     fun start() {
         // Cloud Run sets the PORT environment variable
@@ -107,23 +95,7 @@ class MnistServer(private val modelPath: String) {
                 // Start training asynchronously based on provided layers/config
                 post("/api/train/start") {
                     val req = call.receive<TrainStartRequest>()
-                    val jobId = UUID.randomUUID().toString()
-                    jobs[jobId] = TrainJobStatus(jobId, state = "queued")
-                    executor.submit {
-                        try {
-                            jobs[jobId] = TrainJobStatus(jobId, state = "running")
-                            val newNet = runTrainingJob(req) { epoch, loss, acc ->
-                                jobs[jobId] = TrainJobStatus(jobId, state = "running", epoch = epoch, loss = loss, accuracy = acc)
-                            }
-                            // Save model and hot-swap
-                            ModelSaver().save(newNet, req.save?.path ?: modelPath)
-                            networkRef.set(newNet)
-                            jobs[jobId] = TrainJobStatus(jobId, state = "completed")
-                        } catch (e: Exception) {
-                            logger.error("Training job failed: ${e.message}", e)
-                            jobs[jobId] = TrainJobStatus(jobId, state = "failed", message = e.message)
-                        }
-                    }
+                    val jobId = trainingManager.startTraining(req)
                     call.respond(mapOf("jobId" to jobId))
                 }
 
@@ -133,7 +105,7 @@ class MnistServer(private val modelPath: String) {
                         call.respond(mapOf("error" to "jobId is required"))
                         return@get
                     }
-                    val status = jobs[jobId]
+                    val status = trainingManager.getStatus(jobId)
                     if (status == null) {
                         call.respond(mapOf("error" to "job not found"))
                         return@get
@@ -178,63 +150,4 @@ class MnistServer(private val modelPath: String) {
         return createNetwork()
     }
 
-    private fun runTrainingJob(
-        req: TrainStartRequest,
-        onProgress: (epoch: Int, loss: Double, accuracy: Double) -> Unit
-    ): Network {
-        // 1. Load dataset
-        val baseDir = if (File("app").exists()) "app/" else ""
-        val images = DataLoadContext(MnistImageLoadStrategyImpl()).load("${baseDir}t10k-images.idx3-ubyte")
-        val labels = DataLoadContext(MnistLabelLoadStrategyImpl()).load("${baseDir}t10k-labels.idx1-ubyte")
-        val datasetService = MnistDatasetService(images, labels)
-
-        // 2. Build network
-        val network = if (req.layers != null && req.layers.isNotEmpty()) {
-            LayerFactory.buildNetwork(ModelSpec(version = "1", layers = req.layers), learningRate = req.config.learningRate)
-        } else {
-            val net = Network(CrossEntropy(), StochasticGradientDescent(req.config.learningRate))
-            net.add(Dense(MnistConst.MNIST_INPUT_SIZE, req.config.hiddenLayerSize ?: 100))
-            net.add(ReLU())
-            net.add(Dense(req.config.hiddenLayerSize ?: 100, 10))
-            net.add(Softmax())
-            net
-        }
-
-        // 3. Train
-        val all = datasetService.getAllDataset().shuffled()
-        val train = all.take(req.config.trainSize)
-        val test = all.drop(req.config.trainSize).take(req.config.testSize)
-        val trainer = MnistTrainer(network, train, test)
-        val history = trainer.train(req.config.epochs)
-        history.forEach { onProgress(it.epoch, it.loss, it.accuracy) }
-
-        return network
-    }
 }
-
-data class TrainStartRequest(
-    val layers: List<LayerEntry>?,
-    val config: TrainConfigReq,
-    val save: SaveReq? = null
-)
-
-data class TrainConfigReq(
-    val trainSize: Int = 5000,
-    val testSize: Int = 1000,
-    val epochs: Int = 10,
-    val learningRate: Double = 0.01,
-    val hiddenLayerSize: Int? = 100
-)
-
-data class SaveReq(
-    val path: String? = null
-)
-
-data class TrainJobStatus(
-    val jobId: String,
-    val state: String,
-    val epoch: Int? = null,
-    val loss: Double? = null,
-    val accuracy: Double? = null,
-    val message: String? = null
-)

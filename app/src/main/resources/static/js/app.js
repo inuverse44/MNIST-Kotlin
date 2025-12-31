@@ -6,6 +6,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const predictionEl = document.getElementById('prediction');
     const confidenceEl = document.getElementById('confidence');
     const barsContainer = document.getElementById('bars');
+    const startTrainBtn = document.getElementById('startTrainBtn');
+    const trainStatusEl = document.getElementById('trainStatus');
+    const epochsInput = document.getElementById('epochs');
+    const lrInput = document.getElementById('learningRate');
+    const trainSizeInput = document.getElementById('trainSize');
+    const testSizeInput = document.getElementById('testSize');
+    const hiddenSizeInput = document.getElementById('hiddenSize');
 
     let isDrawing = false;
 
@@ -90,6 +97,58 @@ document.addEventListener('DOMContentLoaded', () => {
             v.style.opacity = '0';
         });
     });
+
+    // ---- Training ----
+    startTrainBtn?.addEventListener('click', async () => {
+        const params = {
+            layers: [
+                { type: 'Dense', inputSize: 28 * 28, outputSize: Number(hiddenSizeInput.value) },
+                { type: 'ReLU' },
+                { type: 'Dense', inputSize: Number(hiddenSizeInput.value), outputSize: 10 },
+                { type: 'Softmax' }
+            ],
+            config: {
+                epochs: Number(epochsInput.value),
+                learningRate: Number(lrInput.value),
+                trainSize: Number(trainSizeInput.value),
+                testSize: Number(testSizeInput.value),
+                hiddenLayerSize: Number(hiddenSizeInput.value)
+            }
+        };
+        try {
+            trainStatusEl.textContent = 'Starting training...';
+            const res = await fetch('/api/train/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(params)
+            });
+            const { jobId } = await res.json();
+            pollTrainStatus(jobId);
+        } catch (e) {
+            trainStatusEl.textContent = 'Failed to start training: ' + e.message;
+        }
+    });
+
+    async function pollTrainStatus(jobId) {
+        const interval = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/train/status?jobId=${encodeURIComponent(jobId)}`);
+                const s = await res.json();
+                if (s.error) {
+                    trainStatusEl.textContent = 'Error: ' + s.error;
+                    clearInterval(interval);
+                    return;
+                }
+                trainStatusEl.textContent = JSON.stringify(s, null, 2);
+                if (s.state === 'completed' || s.state === 'failed') {
+                    clearInterval(interval);
+                }
+            } catch (e) {
+                trainStatusEl.textContent = 'Status error: ' + e.message;
+                clearInterval(interval);
+            }
+        }, 1500);
+    }
 
     predictBtn.addEventListener('click', async () => {
         const imageData = getMnistData();
