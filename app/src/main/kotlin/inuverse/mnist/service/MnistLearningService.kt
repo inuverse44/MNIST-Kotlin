@@ -77,8 +77,8 @@ class MnistLearningService(
             optimizer = StochasticGradientDescent(config.learningRate)
         )
 
-        // 784 (Input) -> Hidden -> 10 (Output)
-        network.add(Dense(784, config.hiddenLayerSize))
+        // Input -> Hidden -> Output
+        network.add(Dense(inuverse.mnist.constants.MnistConst.MNIST_INPUT_SIZE, config.hiddenLayerSize))
         network.add(ReLU())
         network.add(Dense(config.hiddenLayerSize, 10))
         network.add(Softmax())

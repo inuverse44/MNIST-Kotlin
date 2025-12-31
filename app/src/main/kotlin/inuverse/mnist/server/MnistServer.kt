@@ -43,12 +43,12 @@ class MnistServer(private val modelPath: String) {
                 post("/api/predict") {
                     val req = call.receive<PredictRequest>()
                     
-                    if (req.image.size != MnistConst.Mnist1DLength) {
-                        call.respond(mapOf("error" to "Image must be 784 pixels. Received: ${req.image.size}"))
+                    if (req.image.size != MnistConst.MNIST_INPUT_SIZE) {
+                        call.respond(mapOf("error" to "Image must be ${MnistConst.MNIST_INPUT_SIZE} pixels. Received: ${req.image.size}"))
                         return@post
                     }
                     
-                    val inputVector = DenseVector(MnistConst.Mnist1DLength, req.image.toDoubleArray())
+                    val inputVector = DenseVector(MnistConst.MNIST_INPUT_SIZE, req.image.toDoubleArray())
                     val outputVector = network.predict(inputVector)
                     
                     val probabilities = outputVector.getData().toList()
@@ -66,7 +66,7 @@ class MnistServer(private val modelPath: String) {
             loss = CrossEntropy(),
             optimizer = StochasticGradientDescent(0.01) // Not used for inference
         )
-        network.add(Dense(MnistConst.Mnist1DLength, 100))
+        network.add(Dense(MnistConst.MNIST_INPUT_SIZE, 100))
         network.add(ReLU())
         network.add(Dense(100, 10))
         network.add(Softmax())

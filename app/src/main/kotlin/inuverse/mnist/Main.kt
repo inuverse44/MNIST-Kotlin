@@ -12,7 +12,7 @@ import java.util.Scanner
 
 fun main(args: Array<String>) {
     println("🐶 Inuverse: MNIST Learning System 🐶")
-    val modelPath = "mnist_model.json"
+    val modelPath = System.getenv("MODEL_PATH") ?: "mnist_model.json"
     
     // コマンドライン引数があればそれを使う
     val modeFromArgs = args.firstOrNull()

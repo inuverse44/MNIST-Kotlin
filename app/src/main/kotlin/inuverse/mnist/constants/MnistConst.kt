@@ -2,8 +2,12 @@ package inuverse.mnist.constants
 
 object MnistConst {
     const val ROW_LENGTH = 28
-    const val COL_LENTGH = 28
-    const val Mnist1DLength = ROW_LENGTH * COL_LENTGH
+    const val COL_LENGTH = 28
+    // Preferred constant for MNIST input vector length
+    const val MNIST_INPUT_SIZE = ROW_LENGTH * COL_LENGTH
+    // Backward-compat (will be removed): keep old names mapping to new values
+    @Deprecated("Use MNIST_INPUT_SIZE")
+    const val Mnist1DLength = MNIST_INPUT_SIZE
 
     /**
      * 📝
