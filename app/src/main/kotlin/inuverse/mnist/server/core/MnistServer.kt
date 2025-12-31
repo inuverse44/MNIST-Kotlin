@@ -1,4 +1,4 @@
-package inuverse.mnist.server
+package inuverse.mnist.server.core
 
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -20,19 +20,28 @@ import inuverse.mnist.neural.loss.CrossEntropy
 import inuverse.mnist.neural.optimizer.StochasticGradientDescent
 import inuverse.mnist.service.ModelLoader
 import inuverse.mnist.model.DenseVector
+import inuverse.mnist.server.service.TrainingManager
 import java.io.File
+import inuverse.mnist.server.routes.healthRoutes
+import inuverse.mnist.server.routes.versionRoutes
+import inuverse.mnist.server.routes.predictRoutes
+import inuverse.mnist.server.routes.trainRoutes
 import org.slf4j.LoggerFactory
+import java.util.concurrent.atomic.AtomicReference
 
 class MnistServer(private val modelPath: String) {
 
     private val logger = LoggerFactory.getLogger(MnistServer::class.java)
     private val json = jacksonObjectMapper()
+    private val networkRef: AtomicReference<Network> = AtomicReference()
+    private val trainingManager = TrainingManager(modelPath) { net -> networkRef.set(net) }
 
     fun start() {
         // Cloud Run sets the PORT environment variable
         val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
 
         val network = loadOrCreateNetwork()
+        networkRef.set(network)
 
         logger.info("🚀 Starting server on http://0.0.0.0:$port")
         embeddedServer(Netty, port = port, host = "0.0.0.0") {
@@ -44,46 +53,10 @@ class MnistServer(private val modelPath: String) {
             
             routing {
                 staticResources("/", "static", index = "index.html")
-
-                get("/healthz") {
-                    call.respondText("ok")
-                }
-
-                get("/version") {
-                    val modelFile = File(modelPath)
-                    val exists = modelFile.exists()
-                    val info = mutableMapOf<String, Any>(
-                        "modelPath" to modelPath,
-                        "exists" to exists
-                    )
-                    if (exists) {
-                        info["size"] = modelFile.length()
-                        runCatching {
-                            val tree = json.readTree(modelFile)
-                            if (tree.has("version")) {
-                                info["modelSpecVersion"] = tree.get("version").asText()
-                            }
-                        }
-                    }
-                    call.respond(info)
-                }
-                
-                post("/api/predict") {
-                    val req = call.receive<PredictRequest>()
-                    
-                    if (req.image.size != MnistConst.MNIST_INPUT_SIZE) {
-                        call.respond(mapOf("error" to "Image must be ${MnistConst.MNIST_INPUT_SIZE} pixels. Received: ${req.image.size}"))
-                        return@post
-                    }
-                    
-                    val inputVector = DenseVector(MnistConst.MNIST_INPUT_SIZE, req.image.toDoubleArray())
-                    val outputVector = network.predict(inputVector)
-                    
-                    val probabilities = outputVector.getData().toList()
-                    val predictedDigit = probabilities.indices.maxByOrNull { probabilities[it] } ?: -1
-                    
-                    call.respond(PredictResponse(predictedDigit, probabilities))
-                }
+                healthRoutes()
+                versionRoutes(modelPath, json)
+                predictRoutes(networkRef)
+                trainRoutes(trainingManager)
             }
         }.start(wait = true)
     }
@@ -121,4 +94,5 @@ class MnistServer(private val modelPath: String) {
         logger.warn("Model file not found at $modelPath. Using random weights (predictions will be random).")
         return createNetwork()
     }
+
 }
