@@ -10,23 +10,31 @@ import inuverse.mnist.server.MnistServer
 import java.io.File
 import java.util.Scanner
 
-fun main() {
+fun main(args: Array<String>) {
     println("🐶 Inuverse: MNIST Learning System 🐶")
     val modelPath = "mnist_model.json"
     
-    val scanner = Scanner(System.`in`)
-    println("Select mode:")
-    println("1. Train Model")
-    println("2. Start Web Server (UI)")
-    println("3. Train & Start Server")
-    print("> ")
-    
-    // 入力がある場合はそれを使い、ない場合はデフォルト挙動
-    val input = if (scanner.hasNextLine()) {
-        scanner.nextLine().trim()
+    // コマンドライン引数があればそれを使う
+    val modeFromArgs = args.firstOrNull()
+
+    val input = if (modeFromArgs != null) {
+        println("Mode selected via arguments: $modeFromArgs")
+        modeFromArgs
     } else {
-        println("\nNo input detected. Falling back to default...")
-        if (File(modelPath).exists()) "2" else "3"
+        val scanner = Scanner(System.`in`)
+        println("Select mode:")
+        println("1. Train Model")
+        println("2. Start Web Server (UI)")
+        println("3. Train & Start Server")
+        print("> ")
+        
+        // 入力がある場合はそれを使い、ない場合はデフォルト挙動
+        if (scanner.hasNextLine()) {
+            scanner.nextLine().trim()
+        } else {
+            println("\nNo input detected. Falling back to default...")
+            if (File(modelPath).exists()) "2" else "3"
+        }
     }
 
     when (input) {
