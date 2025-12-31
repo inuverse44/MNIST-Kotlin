@@ -5,20 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inuverse MNIST Recognizer</title>
     <link rel="stylesheet" href="css/style.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
     <div class="container">
         <h1>🐶 Inuverse MNIST</h1>
         <div class="main-grid">
+          
+          <!-- Left Panel -->
           <div class="panel">
             <h2>Draw & Predict</h2>
             <p class="caption">Draw a digit (0-9)</p>
-            <canvas id="canvas" width="280" height="280"></canvas>
+            
+            <div class="canvas-wrapper">
+                <canvas id="canvas" width="280" height="280"></canvas>
+            </div>
+            
             <div class="controls">
                 <button id="clearBtn">Clear</button>
                 <button id="predictBtn">Predict</button>
             </div>
+
             <div class="result-section">
                 <h3>Prediction</h3>
                 <p id="prediction">-</p>
@@ -27,12 +36,22 @@
             </div>
           </div>
 
+          <!-- Right Panel -->
           <div class="panel train-section">
             <h2>Train</h2>
 
-            <h3>Training Loss <label class="switch-inline"><input type="checkbox" id="lossLogScale"> Log scale (Y)</label></h3>
-            <div class="plot-container">
-                <canvas id="lossCanvas" width="600" height="300"></canvas>
+            <div class="charts-header">
+                <h3>Metrics</h3>
+                <label class="switch-inline"><input type="checkbox" id="lossLogScale"> Log scale (Loss)</label>
+            </div>
+            
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <canvas id="lossChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="accChart"></canvas>
+                </div>
             </div>
 
             <div id="trainStatus" class="status-bar"></div>
@@ -44,36 +63,38 @@
                     <button id="addReLUBtn">+ ReLU</button>
                     <button id="addSigmoidBtn">+ Sigmoid</button>
                     <button id="addSoftmaxBtn">+ Softmax</button>
-                    <button id="moveUpBtn">↑ Move Up</button>
-                    <button id="moveDownBtn">↓ Move Down</button>
-                    <button id="removeBtn">🗑 Remove</button>
-                    <button id="resetDefaultBtn">Reset Default</button>
+                    <button id="moveUpBtn">↑ Up</button>
+                    <button id="moveDownBtn">↓ Down</button>
+                    <button id="removeBtn">🗑</button>
+                    <button id="resetDefaultBtn">Reset</button>
                 </div>
                 <div class="layer-list" id="layerList"></div>
             </div>
 
-            <div class="form-row">
-                <label>Epochs</label>
-                <input id="epochs" type="number" value="5" min="1" />
-            </div>
-            <div class="form-row">
-                <label>Learning Rate</label>
-                <input id="learningRate" type="number" value="0.01" step="0.001" />
-            </div>
-            <div class="form-row">
-                <label>Train Size</label>
-                <input id="trainSize" type="number" value="2000" min="10" />
-            </div>
-            <div class="form-row">
-                <label>Test Size</label>
-                <input id="testSize" type="number" value="500" min="10" />
-            </div>
-            <div class="form-row">
-                <label>Hidden Layer Size</label>
-                <input id="hiddenSize" type="number" value="100" min="10" />
-            </div>
-            <div class="form-row">
-                <button id="startTrainBtn">Start Training</button>
+            <div class="config-grid">
+                <div class="form-row">
+                    <label>Epochs</label>
+                    <input id="epochs" type="number" value="5" min="1" />
+                </div>
+                <div class="form-row">
+                    <label>Learning Rate</label>
+                    <input id="learningRate" type="number" value="0.01" step="0.001" />
+                </div>
+                <div class="form-row">
+                    <label>Train Size</label>
+                    <input id="trainSize" type="number" value="2000" min="10" />
+                </div>
+                <div class="form-row">
+                    <label>Test Size</label>
+                    <input id="testSize" type="number" value="500" min="10" />
+                </div>
+                <div class="form-row">
+                    <label>Hidden Size</label>
+                    <input id="hiddenSize" type="number" value="100" min="10" />
+                </div>
+                <div class="form-row full-width">
+                    <button id="startTrainBtn">Start Training</button>
+                </div>
             </div>
           </div>
         </div>
