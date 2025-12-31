@@ -13,7 +13,7 @@ COPY --from=build /home/gradle/src/app/build/libs/app-all.jar /app/app.jar
 
 # Copy the trained model (assuming it's in the root context)
 # You must have mnist_model.json in your project root locally!
-COPY /app/mnist_model.json /app/mnist_model.json
+COPY app/mnist_model.json /app/mnist_model.json
 
 # Expose port (Cloud Run sets PORT env var, but 8080 is common default)
 EXPOSE 8080
