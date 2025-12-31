@@ -23,12 +23,15 @@ import java.io.File
 
 class MnistServer(private val modelPath: String) {
 
-    fun start(port: Int = 8080) {
+    fun start() {
+        // Cloud Run sets the PORT environment variable
+        val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
+
         val network = createNetwork()
         loadModel(network)
 
-        println("🐶Starting server on http://localhost:$port")
-        embeddedServer(Netty, port = port) {
+        println("🚀 Starting server on http://0.0.0.0:$port")
+        embeddedServer(Netty, port = port, host = "0.0.0.0") {
             install(ContentNegotiation) {
                 jackson {
                     enable(SerializationFeature.INDENT_OUTPUT)
