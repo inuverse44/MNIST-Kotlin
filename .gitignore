@@ -19,3 +19,7 @@ mnist_model.json
 # Document
 DEPLOY.md
 DOCKER_BUILD.md
+GITHUB_ACTIONS.md
+
+# secrets
+inuverse*.json
