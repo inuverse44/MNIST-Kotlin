@@ -1,0 +1,132 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f0f2f5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem;
+}
+
+h1 {
+    color: #333;
+}
+
+.container {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    text-align: center;
+    max-width: 400px;
+    width: 100%;
+}
+
+canvas {
+    border: 2px solid #333;
+    background-color: black;
+    cursor: crosshair;
+    border-radius: 4px;
+    image-rendering: pixelated;
+}
+
+.controls {
+    margin-top: 1rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+button {
+    padding: 0.6rem 1.2rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+#clearBtn {
+    background-color: #ff4d4d;
+    color: white;
+}
+
+#clearBtn:hover {
+    background-color: #e60000;
+}
+
+#predictBtn {
+    background-color: #4CAF50;
+    color: white;
+}
+
+#predictBtn:hover {
+    background-color: #45a049;
+}
+
+.result-section {
+    margin-top: 2rem;
+    min-height: 120px;
+    border-top: 1px solid #eee;
+    padding-top: 1rem;
+}
+
+#prediction {
+    font-size: 4rem;
+    font-weight: bold;
+    color: #2196F3;
+    margin: 0.5rem 0;
+}
+
+#confidence {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.bar-container {
+    display: flex;
+    align-items: flex-end;
+    height: 120px; /* Increased height for value labels */
+    gap: 6px;
+    margin-top: 1.5rem;
+    justify-content: center;
+}
+
+.bar-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 28px;
+    height: 100%;
+    justify-content: flex-end;
+}
+
+.bar-value {
+    font-size: 0.65rem;
+    color: #555;
+    margin-bottom: 2px;
+    opacity: 0; /* Hidden by default until prediction */
+    transition: opacity 0.3s;
+}
+
+.bar {
+    width: 100%;
+    background-color: #eee;
+    transition: height 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.3s; /* Bouncy effect */
+    border-radius: 4px 4px 0 0;
+    min-height: 4px; /* Always show a tiny bit */
+}
+
+.bar-label {
+    font-size: 0.85rem;
+    margin-top: 4px;
+    color: #777;
+    font-weight: bold;
+}
+
+.bar.active {
+    background-color: #2196F3;
+}
