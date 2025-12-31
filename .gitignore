@@ -15,3 +15,18 @@ lets-plot-images/
 
 # weights and biases
 mnist_model.json
+
+# Document
+DEPLOY.md
+DOCKER_BUILD.md
+GITHUB_ACTIONS.md
+
+# secrets
+inuverse*.json
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars

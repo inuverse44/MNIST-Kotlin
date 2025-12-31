@@ -10,7 +10,8 @@ class ModelLoader {
 
     /**
      * ファイルからパラメータを読み込み、ネットワークに適用する
-     * 注意: Networkの構造（レイヤーの順序と種類）は、保存時と同じである必要があります。
+     * 注意: Networkの構造保存時と同じである必要がある
+     * Networkの構造も保存しておきたいなあ
      */
     fun load(filepath: String, network: Network) {
         val file = File(filepath)
@@ -18,7 +19,7 @@ class ModelLoader {
             throw IllegalArgumentException("Model file not found: $filepath")
         }
 
-        println("📂 Loading model from $filepath ...")
+        println("🐶Loading model from $filepath ...")
 
         // JSONを List<Map<String, Any>> として読み込む
         // 構造: [ { "type": "Dense", "params": {...} }, ... ]
@@ -27,7 +28,7 @@ class ModelLoader {
         val networkLayers = network.getLayers() // NetworkにgetLayersを追加する必要がある
 
         if (layersData.size != networkLayers.size) {
-            println("⚠️ Warning: Layer count mismatch! File: ${layersData.size}, Network: ${networkLayers.size}")
+            println("🐶Warning: Layer count mismatch! File: ${layersData.size}, Network: ${networkLayers.size}")
         }
 
         // 各レイヤーにパラメータをセット
@@ -41,7 +42,7 @@ class ModelLoader {
             
             // 型チェック（簡易）
             if (targetLayer.getName() != layerName) {
-                println("⚠️ Warning: Layer type mismatch at index $index. File: $layerName, Network: ${targetLayer.getName()}")
+                println("🐶Warning: Layer type mismatch at index $index. File: $layerName, Network: ${targetLayer.getName()}")
             }
 
             // パラメータ読み込み
@@ -49,6 +50,6 @@ class ModelLoader {
                 targetLayer.loadParameters(params)
             }
         }
-        println("✅ Model loaded successfully!")
+        println("🐶Model loaded successfully!")
     }
 }

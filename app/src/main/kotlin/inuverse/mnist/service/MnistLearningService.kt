@@ -42,16 +42,33 @@ class MnistLearningService(
         val trainer = MnistTrainer(network, trainData, testData)
         val history = trainer.train(config.epochs)
 
+        val prediction = getPrediction(testData[0].input, network)
+        val actualLabel = testData[0].label
+//        println("\n🐶Check: input: ${testData[0].input}")
+//        println("\n🐶Check: prediction: $prediction")
+//        println("\n🐶Check: label: $actualLabel")
+
         // 可視化
         println("\n🐶 Generating Training Graphs...")
         LossPlotter().plot(history)
 
-        println("🏆 Final Evaluation on Test Data...")
+        println("🐶Final Evaluation on Test Data...")
         val finalAccuracy = trainer.evaluate(testData)
         println("   Test Accuracy: %.2f%%\n".format(finalAccuracy * 100))
         
         // モデルの保存
         ModelSaver().save(network, "mnist_model.json")
+    }
+
+    /**
+     * 784成分ベクトルを入れて、もっとも正解っぽいonehot表現のベクトルを返してくれるやつ
+     * @param input 入力の784成分ベクトル
+     * @param network 最適化後のネットワーク
+     * @return Vector onehot表現の正解っぽいベクトル
+     */
+    fun getPrediction(input: Vector, network: Network): Vector {
+        val prediction = network.predict(input)
+        return prediction
     }
 
     private fun buildNetwork(config: TrainingConfig): Network {
@@ -97,9 +114,9 @@ class MnistLearningService(
             
             val predictedLabel = argmax(output)
             val actualLabel = argmax(sample.label)
-            val probability = output[predictedLabel] * 100
+            val probability = output[predictedLabel] * 100 // onehot表現の出力ベクトルには各成分に重みがある。
 
-            val result = if (predictedLabel == actualLabel) "✅ OK" else "❌ NG"
+            val result = if (predictedLabel == actualLabel) "👍OK" else "👎"
             if (predictedLabel == actualLabel) correct++
 
             println("Sample #$index: Actual [$actualLabel] -> Predicted [$predictedLabel] (Prob: %.2f%%) $result".format(probability))

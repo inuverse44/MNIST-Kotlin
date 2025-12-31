@@ -20,6 +20,9 @@ class MnistDatasetService(
     val mnistImages: Array<Mnist1DImage>,
     val mnistLabels: Array<MnistLabel>
 ) {
+    /**
+     * こいつはいま、784成分ベクトルと10成分ベクトルのペアなんやで
+     */
     data class DataPair(val input: Vector, val label: Vector)
 
     /**

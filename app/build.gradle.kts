@@ -9,6 +9,7 @@
 plugins {
     // Apply the org.jetbrains.kotlin.jvm Plugin to add support for Kotlin.
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.shadow)
 
     // Apply the application plugin to add support for building a CLI application in Java.
     application
@@ -25,6 +26,12 @@ dependencies {
 
     // Jackson (JSON Processing)
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.16.1")
+
+    // Ktor (Web Server)
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.content.negotiation)
+    implementation(libs.ktor.serialization.jackson)
 
     // Let's Plot
     implementation(libs.lets.plot.kotlin.jvm)
@@ -55,4 +62,8 @@ java {
 application {
     // Define the main class for the application.
     mainClass = "inuverse.mnist.MainKt"
+}
+
+tasks.named<JavaExec>("run") {
+    standardInput = System.`in`
 }

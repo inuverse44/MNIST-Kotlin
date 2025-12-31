@@ -1,0 +1,11 @@
+# .gitignoreの内容をベースにしつつ、モデルファイルは除外しない設定
+.gradle
+build
+.idea
+.DS_Store
+.vscode
+*.png
+lets-plot-images/
+
+# モデルファイルを含める（Gitでは無視されているが、Cloud Buildには送る）
+!app/mnist_model.json
