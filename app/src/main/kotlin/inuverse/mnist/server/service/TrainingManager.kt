@@ -1,7 +1,6 @@
-package inuverse.mnist.server
+package inuverse.mnist.server.service
 
 import inuverse.mnist.constants.MnistConst
-import inuverse.mnist.model.DenseVector
 import inuverse.mnist.neural.Network
 import inuverse.mnist.neural.layer.Dense
 import inuverse.mnist.neural.layer.ReLU
@@ -16,6 +15,8 @@ import inuverse.mnist.repository.MnistLabelLoadStrategyImpl
 import inuverse.mnist.service.MnistDatasetService
 import inuverse.mnist.service.MnistTrainer
 import inuverse.mnist.service.ModelSaver
+import inuverse.mnist.server.dto.TrainJobStatus
+import inuverse.mnist.server.dto.TrainStartRequest
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.UUID
@@ -85,4 +86,3 @@ class TrainingManager(
         return network
     }
 }
-

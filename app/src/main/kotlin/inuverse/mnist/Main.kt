@@ -6,7 +6,7 @@ import inuverse.mnist.repository.MnistImageLoadStrategyImpl
 import inuverse.mnist.repository.MnistLabelLoadStrategyImpl
 import inuverse.mnist.service.MnistDatasetService
 import inuverse.mnist.service.MnistLearningService
-import inuverse.mnist.server.MnistServer
+import inuverse.mnist.server.core.MnistServer
 import java.io.File
 import java.util.Scanner
 import org.slf4j.LoggerFactory

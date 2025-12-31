@@ -1,4 +1,4 @@
-package inuverse.mnist.server
+package inuverse.mnist.server.dto
 
 data class TrainJobStatus(
     val jobId: String,
@@ -8,4 +8,3 @@ data class TrainJobStatus(
     val accuracy: Double? = null,
     val message: String? = null
 )
-

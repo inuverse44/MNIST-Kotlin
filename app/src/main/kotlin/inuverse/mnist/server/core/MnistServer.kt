@@ -1,4 +1,4 @@
-package inuverse.mnist.server
+package inuverse.mnist.server.core
 
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -20,9 +20,12 @@ import inuverse.mnist.neural.loss.CrossEntropy
 import inuverse.mnist.neural.optimizer.StochasticGradientDescent
 import inuverse.mnist.service.ModelLoader
 import inuverse.mnist.model.DenseVector
-import inuverse.mnist.server.TrainingManager
-import inuverse.mnist.server.TrainStartRequest
+import inuverse.mnist.server.service.TrainingManager
 import java.io.File
+import inuverse.mnist.server.routes.healthRoutes
+import inuverse.mnist.server.routes.versionRoutes
+import inuverse.mnist.server.routes.predictRoutes
+import inuverse.mnist.server.routes.trainRoutes
 import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicReference
 
@@ -50,68 +53,10 @@ class MnistServer(private val modelPath: String) {
             
             routing {
                 staticResources("/", "static", index = "index.html")
-
-                get("/healthz") {
-                    call.respondText("ok")
-                }
-
-                get("/version") {
-                    val modelFile = File(modelPath)
-                    val exists = modelFile.exists()
-                    val info = mutableMapOf<String, Any>(
-                        "modelPath" to modelPath,
-                        "exists" to exists
-                    )
-                    if (exists) {
-                        info["size"] = modelFile.length()
-                        runCatching {
-                            val tree = json.readTree(modelFile)
-                            if (tree.has("version")) {
-                                info["modelSpecVersion"] = tree.get("version").asText()
-                            }
-                        }
-                    }
-                    call.respond(info)
-                }
-                
-                post("/api/predict") {
-                    val req = call.receive<PredictRequest>()
-                    
-                    if (req.image.size != MnistConst.MNIST_INPUT_SIZE) {
-                        call.respond(mapOf("error" to "Image must be ${MnistConst.MNIST_INPUT_SIZE} pixels. Received: ${req.image.size}"))
-                        return@post
-                    }
-                    
-                    val net = networkRef.get()
-                    val inputVector = DenseVector(MnistConst.MNIST_INPUT_SIZE, req.image.toDoubleArray())
-                    val outputVector = net.predict(inputVector)
-                    
-                    val probabilities = outputVector.getData().toList()
-                    val predictedDigit = probabilities.indices.maxByOrNull { probabilities[it] } ?: -1
-                    
-                    call.respond(PredictResponse(predictedDigit, probabilities))
-                }
-
-                // Start training asynchronously based on provided layers/config
-                post("/api/train/start") {
-                    val req = call.receive<TrainStartRequest>()
-                    val jobId = trainingManager.startTraining(req)
-                    call.respond(mapOf("jobId" to jobId))
-                }
-
-                get("/api/train/status") {
-                    val jobId = call.request.queryParameters["jobId"]
-                    if (jobId == null) {
-                        call.respond(mapOf("error" to "jobId is required"))
-                        return@get
-                    }
-                    val status = trainingManager.getStatus(jobId)
-                    if (status == null) {
-                        call.respond(mapOf("error" to "job not found"))
-                        return@get
-                    }
-                    call.respond(status)
-                }
+                healthRoutes()
+                versionRoutes(modelPath, json)
+                predictRoutes(networkRef)
+                trainRoutes(trainingManager)
             }
         }.start(wait = true)
     }

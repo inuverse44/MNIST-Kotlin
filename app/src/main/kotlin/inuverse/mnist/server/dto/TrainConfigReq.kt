@@ -1,4 +1,4 @@
-package inuverse.mnist.server
+package inuverse.mnist.server.dto
 
 data class TrainConfigReq(
     val trainSize: Int = 5000,
@@ -7,4 +7,3 @@ data class TrainConfigReq(
     val learningRate: Double = 0.01,
     val hiddenLayerSize: Int? = 100
 )
-
