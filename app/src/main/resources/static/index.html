@@ -28,6 +28,14 @@
 
           <div class="panel train-section">
             <h2>Train</h2>
+
+            <h3>Training Loss <label class="switch-inline"><input type="checkbox" id="lossLogScale"> Log scale (Y)</label></h3>
+            <div class="plot-container">
+                <canvas id="lossCanvas" width="600" height="300"></canvas>
+            </div>
+
+            <div id="trainStatus" class="status-bar"></div>
+
             <h3>Layer Builder</h3>
             <div class="layer-builder" id="layerBuilder">
                 <div class="layer-controls">
@@ -65,12 +73,6 @@
             </div>
             <div class="form-row">
                 <button id="startTrainBtn">Start Training</button>
-            </div>
-            <div id="trainStatus" class="status-bar"></div>
-
-            <h3>Training Loss</h3>
-            <div class="plot-container">
-                <canvas id="lossCanvas" width="600" height="300"></canvas>
             </div>
           </div>
         </div>

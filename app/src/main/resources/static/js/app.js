@@ -10,7 +10,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const trainStatusEl = document.getElementById('trainStatus');
     const lossCanvas = document.getElementById('lossCanvas');
     const lossCtx = lossCanvas ? lossCanvas.getContext('2d') : null;
+    const lossLogToggle = document.getElementById('lossLogScale');
     let lossPoints = [];
+    lossLogToggle?.addEventListener('change', () => drawLossPlot());
     const epochsInput = document.getElementById('epochs');
     const lrInput = document.getElementById('learningRate');
     const trainSizeInput = document.getElementById('trainSize');
@@ -337,8 +339,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (lossPoints.length === 0) return;
         const minX = 1;
         const maxX = Math.max(...lossPoints.map(p => p.epoch));
-        const minY = 0;
-        const maxY = Math.max(...lossPoints.map(p => p.loss)) * 1.05 || 1;
+        const eps = 1e-12;
+        const useLog = !!(lossLogToggle && lossLogToggle.checked);
+        const yVals = lossPoints.map(p => useLog ? Math.log10(Math.max(p.loss, eps)) : p.loss);
+        const minY = useLog ? Math.min(...yVals) : 0;
+        const maxY = Math.max(...yVals) * 1.05 || 1;
         const x2px = (x) => padL + (x - minX) / (maxX - minX || 1) * (W - padL - padR);
         const y2px = (y) => (H - padB) - (y - minY) / (maxY - minY || 1) * (H - padT - padB);
 
@@ -347,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.beginPath();
         lossPoints.forEach((p, i) => {
             const px = x2px(p.epoch);
-            const py = y2px(p.loss);
+            const py = y2px(useLog ? Math.log10(Math.max(p.loss, eps)) : p.loss);
             if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
         });
         ctx.stroke();
@@ -358,7 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.save();
         ctx.translate(12, padT + 20);
         ctx.rotate(-Math.PI / 2);
-        ctx.fillText('loss', 0, 0);
+        ctx.fillText(useLog ? 'loss (log10)' : 'loss', 0, 0);
         ctx.restore();
 
         const ticks = 4;
