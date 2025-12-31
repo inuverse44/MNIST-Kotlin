@@ -6,6 +6,139 @@ document.addEventListener('DOMContentLoaded', () => {
     const predictionEl = document.getElementById('prediction');
     const confidenceEl = document.getElementById('confidence');
     const barsContainer = document.getElementById('bars');
+    const startTrainBtn = document.getElementById('startTrainBtn');
+    const trainStatusEl = document.getElementById('trainStatus');
+    const lossCanvas = document.getElementById('lossCanvas');
+    const lossCtx = lossCanvas ? lossCanvas.getContext('2d') : null;
+    const lossLogToggle = document.getElementById('lossLogScale');
+    let lossPoints = [];
+    lossLogToggle?.addEventListener('change', () => drawLossPlot());
+    const epochsInput = document.getElementById('epochs');
+    const lrInput = document.getElementById('learningRate');
+    const trainSizeInput = document.getElementById('trainSize');
+    const testSizeInput = document.getElementById('testSize');
+    const hiddenSizeInput = document.getElementById('hiddenSize');
+
+    // Layer builder elements
+    const layerListEl = document.getElementById('layerList');
+    const addDenseBtn = document.getElementById('addDenseBtn');
+    const addReLUBtn = document.getElementById('addReLUBtn');
+    const addSigmoidBtn = document.getElementById('addSigmoidBtn');
+    const addSoftmaxBtn = document.getElementById('addSoftmaxBtn');
+    const moveUpBtn = document.getElementById('moveUpBtn');
+    const moveDownBtn = document.getElementById('moveDownBtn');
+    const removeBtn = document.getElementById('removeBtn');
+    const resetDefaultBtn = document.getElementById('resetDefaultBtn');
+
+    // Layer model (UI state)
+    let layers = [];
+    let selectedIndex = -1;
+
+    function setDefaultLayers() {
+        layers = [
+            { type: 'Dense', inputSize: 28 * 28, outputSize: Number(hiddenSizeInput.value) || 100 },
+            { type: 'ReLU' },
+            { type: 'Dense', inputSize: Number(hiddenSizeInput.value) || 100, outputSize: 10 },
+            { type: 'Softmax' }
+        ];
+        selectedIndex = -1;
+        renderLayers();
+    }
+
+    function renderLayers() {
+        layerListEl.innerHTML = '';
+        layers.forEach((layer, idx) => {
+            const row = document.createElement('div');
+            row.className = 'layer-row' + (idx === selectedIndex ? ' selected' : '');
+            row.addEventListener('click', () => { selectedIndex = idx; renderLayers(); });
+
+            const typeSpan = document.createElement('span');
+            typeSpan.className = 'layer-type';
+            typeSpan.textContent = `${idx}. ${layer.type}`;
+            row.appendChild(typeSpan);
+
+            if (layer.type === 'Dense') {
+                const inInput = document.createElement('input');
+                inInput.type = 'number';
+                inInput.min = '1';
+                inInput.value = layer.inputSize;
+                inInput.title = 'inputSize';
+                inInput.addEventListener('change', (e) => {
+                    layer.inputSize = Number(e.target.value);
+                });
+                row.appendChild(inInput);
+
+                const arrow = document.createElement('span');
+                arrow.textContent = ' → ';
+                row.appendChild(arrow);
+
+                const outInput = document.createElement('input');
+                outInput.type = 'number';
+                outInput.min = '1';
+                outInput.value = layer.outputSize;
+                outInput.title = 'outputSize';
+                outInput.addEventListener('change', (e) => {
+                    layer.outputSize = Number(e.target.value);
+                    // propagate to next Dense inputSize if present
+                    const next = layers[idx + 1];
+                    if (next && next.type === 'Dense') {
+                        next.inputSize = layer.outputSize;
+                        // keep UI in sync
+                        renderLayers();
+                    }
+                });
+                row.appendChild(outInput);
+            }
+
+            layerListEl.appendChild(row);
+        });
+    }
+
+    // Layer builder controls
+    addDenseBtn?.addEventListener('click', () => {
+        const prev = layers[selectedIndex >= 0 ? selectedIndex : layers.length - 1];
+        const defaultIn = prev && prev.type === 'Dense' ? prev.outputSize : (layers.length === 0 ? 28 * 28 : 10);
+        layers.splice(selectedIndex >= 0 ? selectedIndex + 1 : layers.length, 0, { type: 'Dense', inputSize: defaultIn, outputSize: 100 });
+        selectedIndex = (selectedIndex >= 0 ? selectedIndex + 1 : layers.length - 1);
+        renderLayers();
+    });
+    addReLUBtn?.addEventListener('click', () => { addAct('ReLU'); });
+    addSigmoidBtn?.addEventListener('click', () => { addAct('Sigmoid'); });
+    addSoftmaxBtn?.addEventListener('click', () => { addAct('Softmax'); });
+    function addAct(name) {
+        layers.splice(selectedIndex >= 0 ? selectedIndex + 1 : layers.length, 0, { type: name });
+        selectedIndex = (selectedIndex >= 0 ? selectedIndex + 1 : layers.length - 1);
+        renderLayers();
+    }
+    moveUpBtn?.addEventListener('click', () => {
+        if (selectedIndex > 0) {
+            const tmp = layers[selectedIndex - 1];
+            layers[selectedIndex - 1] = layers[selectedIndex];
+            layers[selectedIndex] = tmp;
+            selectedIndex--;
+            renderLayers();
+        }
+    });
+    moveDownBtn?.addEventListener('click', () => {
+        if (selectedIndex >= 0 && selectedIndex < layers.length - 1) {
+            const tmp = layers[selectedIndex + 1];
+            layers[selectedIndex + 1] = layers[selectedIndex];
+            layers[selectedIndex] = tmp;
+            selectedIndex++;
+            renderLayers();
+        }
+    });
+    removeBtn?.addEventListener('click', () => {
+        if (selectedIndex >= 0) {
+            layers.splice(selectedIndex, 1);
+            selectedIndex = -1;
+            renderLayers();
+        }
+    });
+    resetDefaultBtn?.addEventListener('click', () => setDefaultLayers());
+
+    // Initialize layer builder
+    setDefaultLayers();
 
     let isDrawing = false;
 
@@ -90,6 +223,219 @@ document.addEventListener('DOMContentLoaded', () => {
             v.style.opacity = '0';
         });
     });
+
+    // ---- Training ----
+    startTrainBtn?.addEventListener('click', async () => {
+        const errors = validateLayers(layers);
+        if (errors.length > 0) {
+            trainStatusEl.textContent = 'Layer validation failed:\n' + errors.join('\n');
+            return;
+        }
+        const params = {
+            layers: layers.map(l => ({
+                type: l.type,
+                ...(l.type === 'Dense' ? { inputSize: Number(l.inputSize), outputSize: Number(l.outputSize) } : {})
+            })),
+            config: {
+                epochs: Number(epochsInput.value),
+                learningRate: Number(lrInput.value),
+                trainSize: Number(trainSizeInput.value),
+                testSize: Number(testSizeInput.value),
+                hiddenLayerSize: Number(hiddenSizeInput.value)
+            }
+        };
+        try {
+            trainStatusEl.textContent = 'Starting training...';
+            resetLossPlot();
+            const res = await fetch('/api/train/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(params)
+            });
+            const { jobId } = await res.json();
+            streamTrainStatus(jobId);
+        } catch (e) {
+            trainStatusEl.textContent = 'Failed to start training: ' + e.message;
+        }
+    });
+
+    async function pollTrainStatus(jobId) {
+        const interval = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/train/status?jobId=${encodeURIComponent(jobId)}`);
+                const s = await res.json();
+                if (s.error) {
+                    trainStatusEl.textContent = 'Error: ' + s.error;
+                    clearInterval(interval);
+                    return;
+                }
+                trainStatusEl.textContent = formatStatus(s);
+                if (s.state === 'completed' || s.state === 'failed') {
+                    clearInterval(interval);
+                }
+            } catch (e) {
+                trainStatusEl.textContent = 'Status error: ' + e.message;
+                clearInterval(interval);
+            }
+        }, 1500);
+    }
+
+    function streamTrainStatus(jobId) {
+        if (!window.EventSource) {
+            // Fallback
+            pollTrainStatus(jobId);
+            return;
+        }
+        const es = new EventSource(`/api/train/stream?jobId=${encodeURIComponent(jobId)}`);
+        es.onmessage = (ev) => {
+            try {
+                const data = JSON.parse(ev.data);
+                trainStatusEl.textContent = formatStatus(data);
+                if (typeof data.epoch === 'number' && typeof data.loss === 'number') {
+                    appendLossPoint(data.epoch, data.loss);
+                    drawLossPlot();
+                }
+                if (data.state === 'completed' || data.state === 'failed') {
+                    es.close();
+                }
+            } catch (e) {
+                console.error('SSE parse error', e);
+            }
+        };
+        es.onerror = () => {
+            es.close();
+            // Try fallback polling if SSE fails
+            pollTrainStatus(jobId);
+        };
+    }
+
+    function appendLossPoint(epoch, loss) {
+        lossPoints.push({ epoch, loss });
+        if (lossPoints.length > 1000) lossPoints.shift();
+    }
+
+    function resetLossPlot() {
+        lossPoints = [];
+        drawLossPlot();
+    }
+
+    function drawLossPlot() {
+        if (!lossCtx) return;
+        const ctx = lossCtx;
+        const W = lossCanvas.width, H = lossCanvas.height;
+        ctx.clearRect(0, 0, W, H);
+        // white background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, W, H);
+        const padL = 50, padR = 10, padT = 10, padB = 30;
+        ctx.strokeStyle = '#ccc';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padL, padT);
+        ctx.lineTo(padL, H - padB);
+        ctx.lineTo(W - padR, H - padB);
+        ctx.stroke();
+
+        if (lossPoints.length === 0) return;
+        const minX = 1;
+        const maxX = Math.max(...lossPoints.map(p => p.epoch));
+        const eps = 1e-12;
+        const useLog = !!(lossLogToggle && lossLogToggle.checked);
+        const yVals = lossPoints.map(p => useLog ? Math.log10(Math.max(p.loss, eps)) : p.loss);
+        const minY = useLog ? Math.min(...yVals) : 0;
+        const maxY = Math.max(...yVals) * 1.05 || 1;
+        const x2px = (x) => padL + (x - minX) / (maxX - minX || 1) * (W - padL - padR);
+        const y2px = (y) => (H - padB) - (y - minY) / (maxY - minY || 1) * (H - padT - padB);
+
+        ctx.strokeStyle = '#2196F3';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        lossPoints.forEach((p, i) => {
+            const px = x2px(p.epoch);
+            const py = y2px(useLog ? Math.log10(Math.max(p.loss, eps)) : p.loss);
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        });
+        ctx.stroke();
+
+        ctx.fillStyle = '#555';
+        ctx.font = '12px sans-serif';
+        ctx.fillText('epoch', W - padR - 40, H - 8);
+        ctx.save();
+        ctx.translate(12, padT + 20);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText(useLog ? 'loss (log10)' : 'loss', 0, 0);
+        ctx.restore();
+
+        const ticks = 4;
+        for (let i = 0; i <= ticks; i++) {
+            const yv = minY + (maxY - minY) * (i / ticks);
+            const yy = y2px(yv);
+            ctx.strokeStyle = '#eee';
+            ctx.beginPath();
+            ctx.moveTo(padL, yy);
+            ctx.lineTo(W - padR, yy);
+            ctx.stroke();
+            ctx.fillStyle = '#777';
+            ctx.fillText(yv.toFixed(3), 6, yy + 3);
+        }
+    }
+
+    function formatStatus(s) {
+        if (!s || s.error) return s?.error ? `Error: ${s.error}` : '';
+        const parts = [];
+        if (s.state) parts.push(`State: ${s.state}`);
+        if (typeof s.epoch === 'number') parts.push(`epoch=${s.epoch}`);
+        if (typeof s.loss === 'number') parts.push(`loss=${s.loss.toFixed(5)}`);
+        if (typeof s.accuracy === 'number') parts.push(`acc=${(s.accuracy*100).toFixed(2)}%`);
+        return parts.join('  |  ');
+    }
+
+    function validateLayers(ls) {
+        const errs = [];
+        if (!ls || ls.length === 0) {
+            errs.push('At least one layer is required.');
+            return errs;
+        }
+        // First layer must be Dense(784, ...)
+        if (ls[0].type !== 'Dense') {
+            errs.push('First layer must be Dense.');
+        } else {
+            if (Number(ls[0].inputSize) !== 28 * 28) {
+                errs.push(`First Dense.inputSize must be ${28 * 28}, got ${ls[0].inputSize}`);
+            }
+        }
+        // Adjacency shapes for Dense
+        let current = null;
+        let lastDenseOut = null;
+        ls.forEach((l, i) => {
+            if (l.type === 'Dense') {
+                const inS = Number(l.inputSize);
+                const outS = Number(l.outputSize);
+                if (i === 0) {
+                    current = outS;
+                    lastDenseOut = outS;
+                } else {
+                    if (current != null && inS !== current) {
+                        errs.push(`Dense at index ${i} inputSize mismatch: expected ${current}, got ${inS}`);
+                    }
+                    current = outS;
+                    lastDenseOut = outS;
+                }
+            } else {
+                if (current == null) {
+                    errs.push(`Activation at index ${i} cannot be the first layer.`);
+                }
+            }
+        });
+        // Last must be Softmax
+        if (ls[ls.length - 1].type !== 'Softmax') {
+            errs.push('Last layer must be Softmax for MNIST classification.');
+        }
+        if (lastDenseOut !== 10) {
+            errs.push(`Output dimension must be 10 for MNIST classification, got ${lastDenseOut}`);
+        }
+        return errs;
+    }
 
     predictBtn.addEventListener('click', async () => {
         const imageData = getMnistData();

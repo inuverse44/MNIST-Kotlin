@@ -6,9 +6,11 @@ import inuverse.mnist.model.MnistLabel
 import java.io.DataInputStream
 import java.io.File
 import java.io.FileInputStream
+import org.slf4j.LoggerFactory
 
 class MnistLabelLoadStrategyImpl: DataLoadStrategy<Array<MnistLabel>> {
     override val name = "MNIST Label is loading..."
+    private val logger = LoggerFactory.getLogger(MnistLabelLoadStrategyImpl::class.java)
 
     override fun load(path: String): Array<MnistLabel>  {
         try {
@@ -19,8 +21,8 @@ class MnistLabelLoadStrategyImpl: DataLoadStrategy<Array<MnistLabel>> {
                 val magicNumber = stream.readInt()
                 val numberOfItems = stream.readInt()
 
-                println("Label Magic Number: $magicNumber")
-                println("Number of Labels: $numberOfItems")
+                logger.info("Label Magic Number: $magicNumber")
+                logger.info("Number of Labels: $numberOfItems")
 
                 if (magicNumber != 2049) {
                     throw Exception("This is not a valid MNIST label file.")
