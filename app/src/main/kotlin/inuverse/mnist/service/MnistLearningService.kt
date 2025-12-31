@@ -1,7 +1,5 @@
 package inuverse.mnist.service
 
-import inuverse.mnist.constants.MnistConst
-import inuverse.mnist.model.Mnist1DImage
 import inuverse.mnist.model.TrainingConfig
 import inuverse.mnist.model.Vector
 import inuverse.mnist.neural.Network
@@ -11,7 +9,6 @@ import inuverse.mnist.neural.layer.Softmax
 import inuverse.mnist.neural.loss.CrossEntropy
 import inuverse.mnist.neural.optimizer.StochasticGradientDescent
 import inuverse.mnist.presentation.LossPlotter
-import org.jetbrains.letsPlot.commons.intern.typedGeometry.Vec
 import kotlin.random.Random
 
 
