@@ -29,6 +29,11 @@ resource "google_cloud_run_v2_service" "default" {
         container_port = 8080
       }
     }
+    # 最大・最小インスタンス数の調整
+    scaling {
+      max_instance_count = 3
+      min_instance_count = 0
+    }
   }
 
   traffic {
