@@ -9,7 +9,6 @@ import inuverse.mnist.neural.layer.Sigmoid
 import inuverse.mnist.neural.layer.Softmax
 import inuverse.mnist.neural.loss.CrossEntropy
 import inuverse.mnist.neural.optimizer.StochasticGradientDescent
-import inuverse.mnist.constants.MnistConst
 
 object LayerFactory {
     /**
@@ -31,12 +30,7 @@ object LayerFactory {
                     val inSize = requireNotNull(entry.inputSize) { "Dense.inputSize is required" }
                     val outSize = requireNotNull(entry.outputSize) { "Dense.outputSize is required" }
 
-                    if (currentDim == null) {
-                        // 最初のDenseはMNIST入力次元と一致させる
-                        require(inSize == MnistConst.MNIST_INPUT_SIZE) {
-                            "First Dense.inputSize must be ${MnistConst.MNIST_INPUT_SIZE}, got $inSize"
-                        }
-                    } else {
+                    if (currentDim != null) {
                         require(inSize == currentDim) {
                             "Dense.inputSize mismatch at layer $idx: expected $currentDim, got $inSize"
                         }
@@ -67,10 +61,6 @@ object LayerFactory {
                 require(currentDim != null) { "Activation layer cannot be the first layer (index $idx)" }
             }
         }
-
-        // 最後はSoftmax & 出力は10（MNIST分類）
-        require(spec.layers.isNotEmpty() && spec.layers.last().type == "Softmax") { "Last layer must be Softmax for MNIST classification" }
-        require(lastDenseOut == 10) { "Output dimension must be 10 for MNIST classification, got $lastDenseOut" }
 
         return network
     }
